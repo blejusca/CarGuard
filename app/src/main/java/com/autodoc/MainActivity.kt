@@ -1,0 +1,432 @@
+package com.autodoc
+
+import android.Manifest
+import android.net.Uri
+import android.os.Build
+import android.os.Bundle
+import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.lifecycleScope
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import com.autodoc.data.BackupManager
+import com.autodoc.data.DatabaseProvider
+import com.autodoc.data.PdfExportManager
+import com.autodoc.notification.AutoDocNotificationScheduler
+import com.autodoc.notification.DailyCheckWorker
+import com.autodoc.ui.CarUi
+import com.autodoc.ui.screens.DashboardScreen
+import com.autodoc.ui.screens.DocumentsScreen
+import com.autodoc.ui.screens.SettingsScreen
+import com.autodoc.viewmodel.AutoDocViewModel
+import kotlinx.coroutines.launch
+import java.util.concurrent.TimeUnit
+
+private val Navy = Color(0xFF111827)
+private val Gold = Color(0xFFD4AF37)
+private val SoftBg = Color(0xFFF5F1EA)
+private val Danger = Color(0xFFDC2626)
+
+class MainActivity : ComponentActivity() {
+
+    private lateinit var viewModel: AutoDocViewModel
+
+    private val notificationPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+            // Aplicatia ramane functionala chiar daca permisiunea este refuzata.
+        }
+
+    private var selectedImportUri: Uri? by mutableStateOf(null)
+    private var showImportConfirmDialog: Boolean by mutableStateOf(false)
+
+    private val importBackupLauncher =
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+            if (uri == null) {
+                Toast.makeText(this, "Import anulat.", Toast.LENGTH_SHORT).show()
+                return@registerForActivityResult
+            }
+
+            selectedImportUri = uri
+            showImportConfirmDialog = true
+        }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        requestNotificationPermissionIfNeeded()
+        scheduleDailyDocumentCheck()
+
+        val database = DatabaseProvider.getDatabase(this)
+
+        viewModel = AutoDocViewModel(
+            carDao = database.carDao(),
+            documentDao = database.documentDao(),
+            scheduler = AutoDocNotificationScheduler(this)
+        )
+
+        setContent {
+            val cars by viewModel.cars.collectAsState()
+            var currentScreen by remember { mutableStateOf(AppScreen.DASHBOARD) }
+
+            if (showImportConfirmDialog) {
+                ConfirmImportBackupDialog(
+                    onConfirm = {
+                        val uriToImport = selectedImportUri
+                        showImportConfirmDialog = false
+                        selectedImportUri = null
+
+                        if (uriToImport != null) {
+                            importBackupFile(uriToImport)
+                        }
+                    },
+                    onDismiss = {
+                        showImportConfirmDialog = false
+                        selectedImportUri = null
+                        Toast.makeText(
+                            this@MainActivity,
+                            "Import anulat.",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                )
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(SoftBg)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    NavigationButton(
+                        text = "Dashboard",
+                        selected = currentScreen == AppScreen.DASHBOARD,
+                        modifier = Modifier.weight(1f),
+                        onClick = { currentScreen = AppScreen.DASHBOARD }
+                    )
+
+                    NavigationButton(
+                        text = "Documente",
+                        selected = currentScreen == AppScreen.DOCUMENTS,
+                        modifier = Modifier.weight(1f),
+                        onClick = { currentScreen = AppScreen.DOCUMENTS }
+                    )
+
+                    NavigationButton(
+                        text = "Setari",
+                        selected = currentScreen == AppScreen.SETTINGS,
+                        modifier = Modifier.weight(1f),
+                        onClick = { currentScreen = AppScreen.SETTINGS }
+                    )
+                }
+
+                when (currentScreen) {
+                    AppScreen.DASHBOARD -> {
+                        DashboardScreen(
+                            cars = cars,
+                            onAddCar = { brand, model, plate, year, engine, ownerName, ownerPhone, ownerEmail, ownerNotes ->
+                                viewModel.addCar(
+                                    brand = brand,
+                                    model = model,
+                                    plate = plate,
+                                    year = year,
+                                    engine = engine,
+                                    ownerName = ownerName,
+                                    ownerPhone = ownerPhone,
+                                    ownerEmail = ownerEmail,
+                                    ownerNotes = ownerNotes
+                                )
+                            },
+                            onUpdateCar = { carId, brand, model, plate, year, engine, ownerName, ownerPhone, ownerEmail, ownerNotes ->
+                                viewModel.updateCar(
+                                    carId = carId,
+                                    brand = brand,
+                                    model = model,
+                                    plate = plate,
+                                    year = year,
+                                    engine = engine,
+                                    ownerName = ownerName,
+                                    ownerPhone = ownerPhone,
+                                    ownerEmail = ownerEmail,
+                                    ownerNotes = ownerNotes
+                                )
+                            },
+                            onAddDocument = { carId, type, expiry, days ->
+                                viewModel.addDocument(carId, type, expiry, days)
+                            },
+                            onDeleteDocument = { documentId ->
+                                viewModel.deleteDocument(documentId)
+                            },
+                            onUpdateDocumentExpiry = { documentId, expiryMillis ->
+                                viewModel.updateDocumentExpiry(documentId, expiryMillis)
+                            },
+                            onDeleteCar = { carId ->
+                                viewModel.deleteCar(carId)
+                            },
+                            onExportCarPdf = { car ->
+                                exportCarPdf(car)
+                            }
+                        )
+                    }
+
+                    AppScreen.DOCUMENTS -> {
+                        DocumentsScreen(
+                            cars = cars,
+                            onMarkDocumentManuallyNotified = { documentId ->
+                                viewModel.markDocumentManuallyNotified(documentId)
+                            }
+                        )
+                    }
+
+                    AppScreen.SETTINGS -> {
+                        SettingsScreen(
+                            onExportBackup = {
+                                exportBackupFile()
+                            },
+                            onImportBackup = {
+                                importBackupLauncher.launch(
+                                    arrayOf(
+                                        "application/json",
+                                        "text/plain",
+                                        "application/octet-stream"
+                                    )
+                                )
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun exportBackupFile() {
+        lifecycleScope.launch {
+            try {
+                val success = BackupManager.saveBackupToDownloads(this@MainActivity)
+
+                if (success) {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Backup salvat in Downloads: autodoc_backup.json",
+                        Toast.LENGTH_LONG
+                    ).show()
+                } else {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Nu s-a putut salva backup-ul in Downloads.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(
+                    this@MainActivity,
+                    "Eroare la export backup: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
+    private fun importBackupFile(uri: Uri) {
+        lifecycleScope.launch {
+            try {
+                val success = BackupManager.importBackupFromUri(
+                    context = this@MainActivity,
+                    uri = uri
+                )
+
+                if (success) {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Datele au fost restaurate complet.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                } else {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Fisier backup invalid sau incomplet.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(
+                    this@MainActivity,
+                    "Eroare la import backup: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
+    private fun exportCarPdf(car: CarUi) {
+        lifecycleScope.launch {
+            try {
+                val success = PdfExportManager.exportCarPdfToDownloads(
+                    context = this@MainActivity,
+                    car = car
+                )
+
+                if (success) {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "PDF salvat in Downloads.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                } else {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Nu s-a putut genera PDF-ul.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(
+                    this@MainActivity,
+                    "Eroare la export PDF: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
+    private fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    private fun scheduleDailyDocumentCheck() {
+        val now = java.time.LocalDateTime.now()
+
+        val nextRun = now
+            .withHour(9)
+            .withMinute(0)
+            .withSecond(0)
+            .withNano(0)
+            .let { todayAtNine ->
+                if (todayAtNine.isBefore(now)) {
+                    todayAtNine.plusDays(1)
+                } else {
+                    todayAtNine
+                }
+            }
+
+        val delayMillis = java.time.Duration.between(now, nextRun).toMillis()
+
+        val request = PeriodicWorkRequestBuilder<DailyCheckWorker>(
+            1,
+            TimeUnit.DAYS
+        )
+            .setInitialDelay(delayMillis, TimeUnit.MILLISECONDS)
+            .build()
+
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "daily_document_check",
+            ExistingPeriodicWorkPolicy.UPDATE,
+            request
+        )
+    }
+}
+
+private enum class AppScreen {
+    DASHBOARD,
+    DOCUMENTS,
+    SETTINGS
+}
+
+@Composable
+private fun NavigationButton(
+    text: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Button(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(18.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (selected) Navy else Gold
+        )
+    ) {
+        Text(
+            text = text,
+            color = if (selected) Color.White else Navy,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+@Composable
+private fun ConfirmImportBackupDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Confirmare import backup",
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Text(
+                text = "Atentie: importul va sterge toate datele existente din aplicatie si le va inlocui cu datele din fisierul backup selectat.\n\nContinui?"
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(containerColor = Danger)
+            ) {
+                Text(
+                    text = "Da, import",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        },
+        dismissButton = {
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(containerColor = Gold)
+            ) {
+                Text(
+                    text = "Anuleaza",
+                    color = Navy,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    )
+}
