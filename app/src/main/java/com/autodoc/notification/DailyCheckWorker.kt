@@ -8,7 +8,6 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
-import kotlin.math.abs
 
 class DailyCheckWorker(
     context: Context,
@@ -21,9 +20,14 @@ class DailyCheckWorker(
 
             val documentDao = db.documentDao()
             val carDao = db.carDao()
-            val documents = documentDao.getAllDocuments()
 
+            val documents = documentDao.getAllDocuments()
             val today = LocalDate.now()
+
+            var expiredCount = 0
+            var todayCount = 0
+            var soonCount = 0
+            var clientsToNotify = 0
 
             documents.forEach { doc ->
                 val car = carDao.getCarById(doc.carId) ?: return@forEach
@@ -33,55 +37,59 @@ class DailyCheckWorker(
                     .toLocalDate()
 
                 val daysLeft = ChronoUnit.DAYS.between(today, expiryDate).toInt()
-                val carInfo = "${car.brand} ${car.model} (${car.plate})"
+
+                val hasContact =
+                    car.ownerPhone.isNotBlank() || car.ownerEmail.isNotBlank()
 
                 when {
-                    daysLeft < 0 && !doc.notifiedExpired -> {
-                        DocumentReminderWorker.showNotification(
-                            context = applicationContext,
-                            title = "Document expirat",
-                            message = "${doc.type} pentru $carInfo este expirat de ${abs(daysLeft)} zile"
-                        )
+                    daysLeft < 0 -> expiredCount++
+                    daysLeft == 0 -> todayCount++
+                    daysLeft in 1..doc.reminderDaysBefore -> soonCount++
+                }
 
-                        documentDao.markExpiredNotified(doc.id)
+                if (
+                    hasContact &&
+                    daysLeft <= doc.reminderDaysBefore
+                ) {
+                    clientsToNotify++
+                }
+            }
+
+            val totalUrgent = expiredCount + todayCount + soonCount
+
+            if (totalUrgent > 0) {
+                val title = "Documente auto de verificat"
+
+                val message = buildString {
+                    append("$totalUrgent documente necesita atentie.")
+
+                    if (expiredCount > 0) {
+                        append(" Expirate: $expiredCount.")
                     }
 
-                    daysLeft == 0 && !doc.notifiedToday -> {
-                        DocumentReminderWorker.showNotification(
-                            context = applicationContext,
-                            title = "Documentul expira azi",
-                            message = "${doc.type} pentru $carInfo expira astazi"
-                        )
-
-                        documentDao.markTodayNotified(doc.id)
+                    if (todayCount > 0) {
+                        append(" Expira azi: $todayCount.")
                     }
 
-                    daysLeft == 1 && !doc.notifiedTomorrow -> {
-                        DocumentReminderWorker.showNotification(
-                            context = applicationContext,
-                            title = "Documentul expira maine",
-                            message = "${doc.type} pentru $carInfo expira maine"
-                        )
-
-                        documentDao.markTomorrowNotified(doc.id)
+                    if (soonCount > 0) {
+                        append(" In curand: $soonCount.")
                     }
 
-                    daysLeft in 2..7 &&
-                            daysLeft == doc.reminderDaysBefore &&
-                            !doc.notifiedReminder -> {
-                        DocumentReminderWorker.showNotification(
-                            context = applicationContext,
-                            title = "Document urgent",
-                            message = "${doc.type} pentru $carInfo expira in $daysLeft zile"
-                        )
-
-                        documentDao.markReminderNotified(doc.id)
+                    if (clientsToNotify > 0) {
+                        append(" Clienti de notificat: $clientsToNotify.")
                     }
                 }
+
+                DocumentReminderWorker.showNotification(
+                    context = applicationContext,
+                    title = title,
+                    message = message
+                )
             }
 
             Result.success()
         } catch (e: Exception) {
+            e.printStackTrace()
             Result.retry()
         }
     }
