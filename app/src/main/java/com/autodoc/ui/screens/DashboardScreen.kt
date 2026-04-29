@@ -39,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -499,6 +500,12 @@ private fun AddCarForm(
         ownerNotes: String
     ) -> Unit
 ) {
+    val focusManager = LocalFocusManager.current
+
+    LaunchedEffect(Unit) {
+        focusManager.clearFocus()
+    }
+
     val brand = remember { mutableStateOf("") }
     val model = remember { mutableStateOf("") }
     val plate = remember { mutableStateOf("") }
@@ -604,6 +611,12 @@ private fun EditCarForm(
         ownerNotes: String
     ) -> Unit
 ) {
+    val focusManager = LocalFocusManager.current
+
+    LaunchedEffect(car.id) {
+        focusManager.clearFocus()
+    }
+
     val brand = remember(car.id) { mutableStateOf(car.brand) }
     val model = remember(car.id) { mutableStateOf(car.model) }
     val plate = remember(car.id) { mutableStateOf(car.plate) }
@@ -757,18 +770,18 @@ private fun PremiumCarCard(
                         .weight(1f)
                         .height(44.dp)
                 ) {
-                    Text(if (showEditCar.value) "Inchide" else "Editeaza", color = Navy, fontWeight = FontWeight.Black, fontSize = 14.sp)
+                    Text(if (showEditCar.value) "Inchide" else "Editeaza", color = Navy, fontWeight = FontWeight.Black, fontSize = 14.sp, maxLines = 1, softWrap = false)
                 }
 
                 Button(
                     onClick = { onExportCarPdf(car) },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB)),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1D4ED8)),
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier
                         .weight(1f)
                         .height(44.dp)
                 ) {
-                    Text("PDF", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text("Export PDF", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1, softWrap = false)
                 }
             }
 
@@ -1052,8 +1065,8 @@ private fun LightField(
             focusedBorderColor = Border,
             unfocusedBorderColor = Border,
             cursorColor = Gold,
-            focusedContainerColor = CardBg,
-            unfocusedContainerColor = CardBg
+            focusedContainerColor = FieldBg,
+            unfocusedContainerColor = FieldBg
         )
     )
 }
@@ -1075,8 +1088,8 @@ private fun DarkField(value: String, onChange: (String) -> Unit, label: String) 
             focusedBorderColor = Border,
             unfocusedBorderColor = Border,
             cursorColor = Gold,
-            focusedContainerColor = CardBg,
-            unfocusedContainerColor = CardBg
+            focusedContainerColor = FieldBg,
+            unfocusedContainerColor = FieldBg
         )
     )
 }
@@ -1105,8 +1118,8 @@ private fun DatePickerDarkField(value: String, onChange: (String) -> Unit, label
             focusedBorderColor = Border,
             unfocusedBorderColor = Border,
             cursorColor = Gold,
-            focusedContainerColor = CardBg,
-            unfocusedContainerColor = CardBg
+            focusedContainerColor = FieldBg,
+            unfocusedContainerColor = FieldBg
         )
     )
 
