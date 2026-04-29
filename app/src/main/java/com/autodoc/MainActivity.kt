@@ -12,6 +12,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.List
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -31,7 +35,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.lifecycleScope
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
@@ -41,6 +44,7 @@ import com.autodoc.data.DatabaseProvider
 import com.autodoc.data.PdfExportManager
 import com.autodoc.notification.AutoDocNotificationScheduler
 import com.autodoc.notification.DailyCheckWorker
+import com.autodoc.ui.AppColors
 import com.autodoc.ui.CarUi
 import com.autodoc.ui.screens.DashboardScreen
 import com.autodoc.ui.screens.DocumentsScreen
@@ -48,13 +52,6 @@ import com.autodoc.ui.screens.SettingsScreen
 import com.autodoc.viewmodel.AutoDocViewModel
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
-
-private val Navy = Color(0xFF111827)
-private val DeepBg = Color(0xFF0F1117)
-private val Gold = Color(0xFFD4AF37)
-private val Danger = Color(0xFFDC2626)
-private val Muted = Color(0xFF9CA3AF)
-private val NavBg = Color(0xFF111827)
 
 class MainActivity : ComponentActivity() {
 
@@ -123,8 +120,8 @@ class MainActivity : ComponentActivity() {
             Scaffold(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(DeepBg),
-                containerColor = DeepBg,
+                    .background(AppColors.DeepBg),
+                containerColor = AppColors.DeepBg,
                 bottomBar = {
                     BottomNavigationBar(
                         currentScreen = currentScreen,
@@ -137,7 +134,7 @@ class MainActivity : ComponentActivity() {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(DeepBg)
+                        .background(AppColors.DeepBg)
                         .padding(innerPadding)
                 ) {
                     when (currentScreen) {
@@ -225,19 +222,15 @@ class MainActivity : ComponentActivity() {
             try {
                 val success = BackupManager.saveBackupToDownloads(this@MainActivity)
 
-                if (success) {
-                    Toast.makeText(
-                        this@MainActivity,
-                        "Backup salvat in Downloads: autodoc_backup.json",
-                        Toast.LENGTH_LONG
-                    ).show()
-                } else {
-                    Toast.makeText(
-                        this@MainActivity,
-                        "Nu s-a putut salva backup-ul in Downloads.",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
+                Toast.makeText(
+                    this@MainActivity,
+                    if (success) {
+                        "Backup salvat in Downloads: autodoc_backup.json"
+                    } else {
+                        "Nu s-a putut salva backup-ul in Downloads."
+                    },
+                    Toast.LENGTH_LONG
+                ).show()
             } catch (e: Exception) {
                 Toast.makeText(
                     this@MainActivity,
@@ -256,19 +249,15 @@ class MainActivity : ComponentActivity() {
                     uri = uri
                 )
 
-                if (success) {
-                    Toast.makeText(
-                        this@MainActivity,
-                        "Datele au fost restaurate complet.",
-                        Toast.LENGTH_LONG
-                    ).show()
-                } else {
-                    Toast.makeText(
-                        this@MainActivity,
-                        "Fisier backup invalid sau incomplet.",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
+                Toast.makeText(
+                    this@MainActivity,
+                    if (success) {
+                        "Datele au fost restaurate complet."
+                    } else {
+                        "Fisier backup invalid sau incomplet."
+                    },
+                    Toast.LENGTH_LONG
+                ).show()
             } catch (e: Exception) {
                 Toast.makeText(
                     this@MainActivity,
@@ -287,19 +276,15 @@ class MainActivity : ComponentActivity() {
                     car = car
                 )
 
-                if (success) {
-                    Toast.makeText(
-                        this@MainActivity,
-                        "PDF salvat in Downloads.",
-                        Toast.LENGTH_LONG
-                    ).show()
-                } else {
-                    Toast.makeText(
-                        this@MainActivity,
-                        "Nu s-a putut genera PDF-ul.",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
+                Toast.makeText(
+                    this@MainActivity,
+                    if (success) {
+                        "PDF salvat in Downloads."
+                    } else {
+                        "Nu s-a putut genera PDF-ul."
+                    },
+                    Toast.LENGTH_LONG
+                ).show()
             } catch (e: Exception) {
                 Toast.makeText(
                     this@MainActivity,
@@ -355,84 +340,73 @@ private enum class AppScreen {
     SETTINGS
 }
 
+private data class BottomNavItem(
+    val screen: AppScreen,
+    val label: String,
+    val icon: ImageVector,
+    val contentDescription: String
+)
+
 @Composable
 private fun BottomNavigationBar(
     currentScreen: AppScreen,
     onScreenSelected: (AppScreen) -> Unit
 ) {
+    val items = listOf(
+        BottomNavItem(
+            screen = AppScreen.DASHBOARD,
+            label = "Dashboard",
+            icon = Icons.Outlined.Home,
+            contentDescription = "Dashboard"
+        ),
+        BottomNavItem(
+            screen = AppScreen.DOCUMENTS,
+            label = "Documente",
+            icon = Icons.Outlined.List,
+            contentDescription = "Documente"
+        ),
+        BottomNavItem(
+            screen = AppScreen.SETTINGS,
+            label = "Setari",
+            icon = Icons.Outlined.Settings,
+            contentDescription = "Setari"
+        )
+    )
+
     NavigationBar(
-        containerColor = NavBg,
+        containerColor = AppColors.Navy,
         contentColor = Color.White
     ) {
-        NavigationBarItem(
-            selected = currentScreen == AppScreen.DASHBOARD,
-            onClick = { onScreenSelected(AppScreen.DASHBOARD) },
-            icon = {
-                Text(
-                    text = "⌂",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            label = {
-                Text(
-                    text = "Dashboard",
-                    maxLines = 1,
-                    fontWeight = FontWeight.SemiBold
-                )
-            },
-            colors = navItemColors()
-        )
-
-        NavigationBarItem(
-            selected = currentScreen == AppScreen.DOCUMENTS,
-            onClick = { onScreenSelected(AppScreen.DOCUMENTS) },
-            icon = {
-                Text(
-                    text = "▤",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            label = {
-                Text(
-                    text = "Documente",
-                    maxLines = 1,
-                    fontWeight = FontWeight.SemiBold
-                )
-            },
-            colors = navItemColors()
-        )
-
-        NavigationBarItem(
-            selected = currentScreen == AppScreen.SETTINGS,
-            onClick = { onScreenSelected(AppScreen.SETTINGS) },
-            icon = {
-                Text(
-                    text = "⚙",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            label = {
-                Text(
-                    text = "Setari",
-                    maxLines = 1,
-                    fontWeight = FontWeight.SemiBold
-                )
-            },
-            colors = navItemColors()
-        )
+        items.forEach { item ->
+            NavigationBarItem(
+                selected = currentScreen == item.screen,
+                onClick = { onScreenSelected(item.screen) },
+                icon = {
+                    Icon(
+                        imageVector = item.icon,
+                        contentDescription = item.contentDescription
+                    )
+                },
+                label = {
+                    Text(
+                        text = item.label,
+                        maxLines = 1,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                },
+                colors = navItemColors()
+            )
+        }
     }
 }
 
 @Composable
 private fun navItemColors() = NavigationBarItemDefaults.colors(
-    selectedIconColor = Gold,
-    selectedTextColor = Gold,
-    indicatorColor = Color(0xFF1F2937),
-    unselectedIconColor = Muted,
-    unselectedTextColor = Muted
+    selectedIconColor = AppColors.Gold,
+    selectedTextColor = AppColors.Gold,
+    indicatorColor = AppColors.CardBg,
+    unselectedIconColor = AppColors.SoftText,
+    unselectedTextColor = AppColors.SoftText
 )
 
 @Composable
@@ -456,7 +430,7 @@ private fun ConfirmImportBackupDialog(
         confirmButton = {
             Button(
                 onClick = onConfirm,
-                colors = ButtonDefaults.buttonColors(containerColor = Danger)
+                colors = ButtonDefaults.buttonColors(containerColor = AppColors.Danger)
             ) {
                 Text(
                     text = "Da, import",
@@ -468,11 +442,11 @@ private fun ConfirmImportBackupDialog(
         dismissButton = {
             Button(
                 onClick = onDismiss,
-                colors = ButtonDefaults.buttonColors(containerColor = Gold)
+                colors = ButtonDefaults.buttonColors(containerColor = AppColors.Gold)
             ) {
                 Text(
                     text = "Anuleaza",
-                    color = Navy,
+                    color = AppColors.Navy,
                     fontWeight = FontWeight.Bold
                 )
             }
