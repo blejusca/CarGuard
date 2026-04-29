@@ -1,5 +1,6 @@
 package com.autodoc.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -7,7 +8,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -20,13 +23,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.autodoc.ui.AppColors
 
-private val Navy = Color(0xFF111827)
-private val Gold = Color(0xFFD4AF37)
-private val SoftBg = Color(0xFFF5F1EA)
-private val CardBg = Color(0xFF1F2937)
-private val MutedText = Color(0xFFD1D5DB)
-private val Danger = Color(0xFFDC2626)
+private val DeepBg = AppColors.DeepBg
+private val Navy = AppColors.Navy
+private val Gold = AppColors.Gold
+private val CardBg = AppColors.CardBg
+private val Border = AppColors.Border
+private val MutedText = AppColors.MutedText
+private val SoftText = AppColors.SoftText
+private val Danger = AppColors.Danger
 
 @Composable
 fun SettingsScreen(
@@ -36,14 +42,16 @@ fun SettingsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(SoftBg)
-            .padding(16.dp),
+            .background(DeepBg)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = Navy),
-            shape = RoundedCornerShape(28.dp)
+            border = BorderStroke(1.dp, Border),
+            shape = RoundedCornerShape(26.dp)
         ) {
             Column(
                 modifier = Modifier.padding(22.dp),
@@ -53,14 +61,15 @@ fun SettingsScreen(
                     text = "Setari",
                     style = MaterialTheme.typography.headlineMedium,
                     color = Color.White,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Black
                 )
 
                 Text(
                     text = "Backup, restaurare si informatii aplicatie",
                     color = Gold,
                     fontSize = 18.sp,
-                    fontWeight = FontWeight.Medium
+                    lineHeight = 22.sp,
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
@@ -68,6 +77,7 @@ fun SettingsScreen(
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = CardBg),
+            border = BorderStroke(1.dp, Border),
             shape = RoundedCornerShape(26.dp)
         ) {
             Column(
@@ -78,7 +88,7 @@ fun SettingsScreen(
                     text = "Backup date",
                     color = Color.White,
                     fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Black
                 )
 
                 Text(
@@ -94,13 +104,13 @@ fun SettingsScreen(
                     shape = RoundedCornerShape(18.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp)
+                        .height(54.dp)
                 ) {
                     Text(
                         text = "Export backup",
                         color = Navy,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 17.sp
+                        fontWeight = FontWeight.Black,
+                        fontSize = 16.sp
                     )
                 }
 
@@ -110,13 +120,13 @@ fun SettingsScreen(
                     shape = RoundedCornerShape(18.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp)
+                        .height(54.dp)
                 ) {
                     Text(
                         text = "Import backup",
                         color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 17.sp
+                        fontWeight = FontWeight.Black,
+                        fontSize = 16.sp
                     )
                 }
 
@@ -132,32 +142,59 @@ fun SettingsScreen(
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = CardBg),
+            border = BorderStroke(1.dp, Border),
             shape = RoundedCornerShape(26.dp)
         ) {
             Column(
                 modifier = Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
                     text = "Info aplicatie",
-                    color = Navy,
+                    color = Color.White,
                     fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Black
                 )
 
                 Text(
                     text = "AutoDoc / CarGuard Business",
-                    color = Navy,
+                    color = Gold,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold
                 )
 
                 Text(
-                    text = "Aplicatie pentru gestionarea masinilor, documentelor auto si notificarilor de expirare.",
-                    color = Color(0xFF4B5563),
+                    text = "Aplicatie pentru gestionarea masinilor, clientilor si documentelor auto.",
+                    color = MutedText,
                     fontSize = 15.sp,
                     lineHeight = 20.sp
+                )
+
+                Text(
+                    text = "Functionalitati active:",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Text(
+                    text = "• evidenta masini si clienti\n• documente auto: ITP, RCA, CASCO, Rovinieta, Revizie\n• notificari pentru documente expirate sau aproape de expirare\n• notificare client prin WhatsApp sau email\n• export raport PDF pentru masina\n• backup si restaurare date",
+                    color = SoftText,
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp
+                )
+
+                Text(
+                    text = "Versiune: 1.0",
+                    color = MutedText,
+                    fontSize = 13.sp
+                )
+
+                Text(
+                    text = "© 2026 CarGuard Business",
+                    color = SoftText,
+                    fontSize = 12.sp
                 )
             }
         }
