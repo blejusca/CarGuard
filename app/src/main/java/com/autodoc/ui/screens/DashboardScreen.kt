@@ -1,5 +1,6 @@
 package com.autodoc.ui.screens
 
+import com.autodoc.ui.AppColors
 import com.autodoc.ui.severity
 import com.autodoc.ui.shouldNotifyClient
 import android.content.Context
@@ -71,17 +72,6 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlin.math.abs
 
-private val DeepBg = Color(0xFF0F1117)
-private val Navy = Color(0xFF111827)
-private val CardBg = Color(0xFF1F2937)
-private val Border = Color(0xFF374151)
-private val Gold = Color(0xFFD4AF37)
-private val Danger = Color(0xFFDC2626)
-private val Warning = Color(0xFFF59E0B)
-private val Ok = Color(0xFF22C55E)
-private val MutedText = Color(0xFFD1D5DB)
-private val SoftText = Color(0xFF9CA3AF)
-private val FieldBg = Color(0xFF1F2937)
 
 private enum class DashboardFilter {
     ALL,
@@ -89,7 +79,17 @@ private enum class DashboardFilter {
     SOON,
     OK
 }
-
+private val DeepBg = AppColors.DeepBg
+private val Navy = AppColors.Navy
+private val CardBg = AppColors.CardBg
+private val Border = AppColors.Border
+private val Gold = AppColors.Gold
+private val Danger = AppColors.Danger
+private val Warning = AppColors.Warning
+private val Ok = AppColors.Ok
+private val MutedText = AppColors.MutedText
+private val SoftText = AppColors.SoftText
+private val FieldBg = AppColors.FieldBg
 private enum class DashboardSort {
     URGENTE,
     MARCA,
