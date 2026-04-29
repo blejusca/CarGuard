@@ -212,10 +212,10 @@ fun DashboardScreen(
             shape = RoundedCornerShape(18.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .height(52.dp)
+                .height(50.dp)
         ) {
             Text(
-                text = if (showAddCar.value) "Inchide formular masina" else "+ Adauga masina",
+                text = if (showAddCar.value) "Inchide formular" else "+ Adauga masina",
                 color = Navy,
                 fontWeight = FontWeight.Black,
                 fontSize = 16.sp,
@@ -292,7 +292,7 @@ private fun Header(carsCount: Int) {
             Text(
                 text = "$carsCount masini active",
                 color = Gold,
-                fontSize = 13.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold
             )
         }
@@ -311,15 +311,15 @@ private fun SearchBar(
             value = value,
             onValueChange = onChange,
             singleLine = true,
-            placeholder = { Text("Cauta masina sau client", color = SoftText) },
-            leadingIcon = { Text("⌕", color = Gold, fontSize = 22.sp, fontWeight = FontWeight.Bold) },
+            placeholder = { Text("Cauta masina sau client", color = SoftText, fontSize = 15.sp) },
+            leadingIcon = { Text("⌕", color = Gold, fontSize = 20.sp, fontWeight = FontWeight.Bold) },
             keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Search),
             keyboardActions = KeyboardActions(onSearch = { onSearch() }),
-            textStyle = MaterialTheme.typography.bodyLarge.copy(color = Color.White, fontSize = 16.sp),
+            textStyle = MaterialTheme.typography.bodyLarge.copy(color = Color.White, fontSize = 15.sp),
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp),
-            shape = RoundedCornerShape(28.dp),
+                .height(52.dp),
+            shape = RoundedCornerShape(26.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedTextColor = Color.White,
                 unfocusedTextColor = Color.White,
@@ -338,24 +338,24 @@ private fun SearchBar(
             Button(
                 onClick = onSearch,
                 colors = ButtonDefaults.buttonColors(containerColor = Gold),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(15.dp),
                 modifier = Modifier
                     .weight(1f)
-                    .height(44.dp)
+                    .height(42.dp)
             ) {
-                Text("Cauta", color = Navy, fontWeight = FontWeight.Black)
+                Text("Cauta", color = Navy, fontWeight = FontWeight.Black, fontSize = 15.sp)
             }
 
             Button(
                 onClick = onReset,
                 colors = ButtonDefaults.buttonColors(containerColor = CardBg),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(15.dp),
                 border = BorderStroke(1.dp, Border),
                 modifier = Modifier
                     .weight(1f)
-                    .height(44.dp)
+                    .height(42.dp)
             ) {
-                Text("Reseteaza", color = Gold, fontWeight = FontWeight.Bold)
+                Text("Reseteaza", color = Gold, fontWeight = FontWeight.Bold, fontSize = 15.sp)
             }
         }
     }
@@ -387,7 +387,7 @@ private fun SummaryCard(
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.height(62.dp),
+        modifier = modifier.height(58.dp),
         colors = CardDefaults.cardColors(containerColor = if (selected) Navy else CardBg),
         border = BorderStroke(1.dp, if (selected) Gold else Border),
         shape = RoundedCornerShape(16.dp)
@@ -399,8 +399,8 @@ private fun SummaryCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Text(text = value, color = color, fontSize = 21.sp, fontWeight = FontWeight.Black, maxLines = 1)
-            Text(text = title, color = SoftText, fontSize = 11.sp, fontWeight = FontWeight.Medium, maxLines = 1, softWrap = false)
+            Text(text = value, color = color, fontSize = 19.sp, fontWeight = FontWeight.Black, maxLines = 1)
+            Text(text = title, color = SoftText, fontSize = 10.sp, fontWeight = FontWeight.Medium, maxLines = 1, softWrap = false)
         }
     }
 }
@@ -411,7 +411,7 @@ private fun SortButtons(
     onSortChange: (DashboardSort) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(text = "Sortare masini", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        Text(text = "Sortare masini", color = Color.White, fontWeight = FontWeight.Black, fontSize = 18.sp)
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             SortButton("Prioritate", activeSort == DashboardSort.URGENTE, Modifier.weight(1f)) { onSortChange(DashboardSort.URGENTE) }
             SortButton("Marca", activeSort == DashboardSort.MARCA, Modifier.weight(1f)) { onSortChange(DashboardSort.MARCA) }
@@ -429,7 +429,7 @@ private fun SortButton(
 ) {
     Card(
         modifier = modifier
-            .height(42.dp)
+            .height(40.dp)
             .clickable { onClick() },
         colors = CardDefaults.cardColors(containerColor = if (selected) Gold else Color.Transparent),
         border = BorderStroke(1.dp, Gold),
@@ -446,7 +446,7 @@ private fun SortButton(
                 text = text,
                 color = if (selected) Navy else Gold,
                 fontWeight = if (selected) FontWeight.Black else FontWeight.Bold,
-                fontSize = 13.sp,
+                fontSize = 12.sp,
                 maxLines = 1,
                 softWrap = false
             )
@@ -509,20 +509,27 @@ private fun AddCarForm(
     val errorMessage = remember { mutableStateOf("") }
 
     PremiumLightCard {
-        Text(text = "Masina noua", fontWeight = FontWeight.Black, color = Color.White, style = MaterialTheme.typography.titleLarge)
+        Text(
+            text = "Masina noua",
+            fontWeight = FontWeight.Black,
+            color = Color.White,
+            fontSize = 23.sp
+        )
 
         if (errorMessage.value.isNotBlank()) {
-            Text(text = errorMessage.value, color = Danger, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Text(text = errorMessage.value, color = Danger, fontWeight = FontWeight.Bold, fontSize = 13.sp)
         }
 
+        FormSectionTitle("Date masina")
         LightField(brand.value, { brand.value = it }, "Marca")
         LightField(model.value, { model.value = it }, "Model")
         LightField(plate.value, { plate.value = it.uppercase() }, "Numar inmatriculare")
         LightField(year.value, { year.value = it.filter { c -> c.isDigit() } }, "An fabricatie")
         LightField(engine.value, { engine.value = it }, "Motorizare")
 
-        Text(text = "Date client / proprietar", color = Gold, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        Spacer(modifier = Modifier.height(2.dp))
 
+        FormSectionTitle("Date client / proprietar")
         LightField(ownerName.value, { ownerName.value = it }, "Nume client / proprietar")
         LightField(ownerPhone.value, { ownerPhone.value = it }, "Telefon client")
         LightField(ownerEmail.value, { ownerEmail.value = it }, "Email client")
@@ -559,11 +566,24 @@ private fun AddCarForm(
             },
             colors = ButtonDefaults.buttonColors(containerColor = Gold),
             shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
         ) {
-            Text("Salveaza masina", color = Navy, fontWeight = FontWeight.Black)
+            Text("Salveaza masina", color = Navy, fontWeight = FontWeight.Black, fontSize = 15.sp)
         }
     }
+}
+
+@Composable
+private fun FormSectionTitle(text: String) {
+    Text(
+        text = text,
+        color = Gold,
+        fontWeight = FontWeight.Black,
+        fontSize = 16.sp,
+        modifier = Modifier.padding(top = 4.dp)
+    )
 }
 
 @Composable
@@ -704,8 +724,9 @@ private fun PremiumCarCard(
         shape = RoundedCornerShape(24.dp)
     ) {
         Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(text = "${car.brand} ${car.model}", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Black)
-            Text(text = "${car.plate} • ${car.year} • ${car.engine}", color = SoftText, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+            Text(text = "${car.brand} ${car.model}", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Black)
+            Text(text = car.plate, color = MutedText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text(text = "${car.year} • ${car.engine.ifBlank { "Motorizare nespecificata" }}", color = SoftText, fontSize = 14.sp, fontWeight = FontWeight.Medium)
 
             if (car.ownerName.isNotBlank() || car.ownerPhone.isNotBlank() || car.ownerEmail.isNotBlank()) {
                 Divider(color = Border)
@@ -730,18 +751,22 @@ private fun PremiumCarCard(
                     onClick = { showEditCar.value = !showEditCar.value },
                     colors = ButtonDefaults.buttonColors(containerColor = Gold),
                     shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp)
                 ) {
-                    Text(if (showEditCar.value) "Inchide" else "Editeaza", color = Navy, fontWeight = FontWeight.Black)
+                    Text(if (showEditCar.value) "Inchide" else "Editeaza", color = Navy, fontWeight = FontWeight.Black, fontSize = 14.sp)
                 }
 
                 Button(
                     onClick = { onExportCarPdf(car) },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB)),
                     shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp)
                 ) {
-                    Text("PDF", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("PDF", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
             }
 
@@ -1011,10 +1036,10 @@ private fun LightField(
         label = { Text(label, maxLines = 1, softWrap = false) },
         keyboardOptions = keyboardOptions,
         keyboardActions = keyboardActions,
-        textStyle = MaterialTheme.typography.bodyLarge.copy(color = Color.White, fontSize = 16.sp),
+        textStyle = MaterialTheme.typography.bodyLarge.copy(color = Color.White, fontSize = 15.sp),
         modifier = Modifier
             .fillMaxWidth()
-            .height(68.dp),
+            .height(60.dp),
         shape = RoundedCornerShape(18.dp),
         colors = OutlinedTextFieldDefaults.colors(
             focusedTextColor = Color.White,
@@ -1119,7 +1144,7 @@ private fun PremiumLightCard(content: @Composable ColumnScope.() -> Unit) {
         border = BorderStroke(1.dp, Border),
         shape = RoundedCornerShape(22.dp)
     ) {
-        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp), content = content)
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = content)
     }
 }
 
