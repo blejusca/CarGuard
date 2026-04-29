@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -171,7 +172,8 @@ fun DashboardScreen(
             .fillMaxSize()
             .background(DeepBg)
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .imePadding()
+            .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Header(carsCount = cars.size)
@@ -318,6 +320,7 @@ private fun SearchBar(
             textStyle = MaterialTheme.typography.bodyLarge.copy(color = Color.White, fontSize = 15.sp),
             modifier = Modifier
                 .fillMaxWidth()
+                .padding(end = 2.dp)
                 .height(52.dp),
             shape = RoundedCornerShape(26.dp),
             colors = OutlinedTextFieldDefaults.colors(
@@ -1039,6 +1042,7 @@ private fun LightField(
         textStyle = MaterialTheme.typography.bodyLarge.copy(color = Color.White, fontSize = 15.sp),
         modifier = Modifier
             .fillMaxWidth()
+            .padding(horizontal = 2.dp)
             .height(60.dp),
         shape = RoundedCornerShape(18.dp),
         colors = OutlinedTextFieldDefaults.colors(
@@ -1139,7 +1143,9 @@ private fun DatePickerDarkField(value: String, onChange: (String) -> Unit, label
 @Composable
 private fun PremiumLightCard(content: @Composable ColumnScope.() -> Unit) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 1.dp),
         colors = CardDefaults.cardColors(containerColor = CardBg),
         border = BorderStroke(1.dp, Border),
         shape = RoundedCornerShape(22.dp)
