@@ -1,5 +1,6 @@
 package com.autodoc.ui.screens
 
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -122,27 +123,22 @@ fun DocumentsScreen(
 
         TextButton(
             onClick = {
-                val urgentWithContact = allDocuments
+                val documentsToNotify = allDocuments
                     .filter { item ->
                         val hasContact = item.car.ownerPhone.isNotBlank() || item.car.ownerEmail.isNotBlank()
                         item.document.shouldNotifyClient() && hasContact && !item.document.isManuallyNotified()
                     }
                     .sortedBy { it.document.daysLeft }
 
-                if (urgentWithContact.isNotEmpty()) {
-                    val safeIndex = notifyIndex.value % urgentWithContact.size
-                    val item = urgentWithContact[safeIndex]
+                if (documentsToNotify.isNotEmpty()) {
+                    val safeIndex = notifyIndex.value % documentsToNotify.size
+                    val item = documentsToNotify[safeIndex]
 
                     notifyClient(context, item.car, item.document)
                     onMarkDocumentManuallyNotified(item.document.id)
                     notifyIndex.value = safeIndex + 1
 
-                    val clientName = item.car.ownerName.ifBlank { item.car.plate }
-                    Toast.makeText(
-                        context,
-                        "Client notificat: $clientName - ${item.document.type}",
-                        Toast.LENGTH_LONG
-                    ).show()
+                    showNotificationToast(context, item.car, item.document)
                 }
             },
             enabled = clientsToNotifyCount > 0,
@@ -184,12 +180,7 @@ fun DocumentsScreen(
                         onNotified = {
                             notifyClient(context, item.car, item.document)
                             onMarkDocumentManuallyNotified(item.document.id)
-                            val clientName = item.car.ownerName.ifBlank { item.car.plate }
-                            Toast.makeText(
-                                context,
-                                "Client notificat: $clientName - ${item.document.type}",
-                                Toast.LENGTH_LONG
-                            ).show()
+                            showNotificationToast(context, item.car, item.document)
                         }
                     )
                 }
@@ -424,7 +415,7 @@ private fun DocumentItem(
             }
 
             if (isNotified) {
-                StatusBadge("NOTIFICAT", Gold)
+                StatusBadge("NOTIFICAT", Gold, darkText = true)
             }
 
             Text(text = statusText(document), color = color, fontSize = 16.sp, fontWeight = FontWeight.Bold)
@@ -481,14 +472,18 @@ private fun DocumentItem(
 }
 
 @Composable
-private fun StatusBadge(text: String, color: Color) {
+private fun StatusBadge(
+    text: String,
+    color: Color,
+    darkText: Boolean = false
+) {
     Card(
         colors = CardDefaults.cardColors(containerColor = color),
         shape = RoundedCornerShape(999.dp)
     ) {
         Text(
             text = text,
-            color = Color.White,
+            color = if (darkText) Navy else Color.White,
             fontSize = 11.sp,
             fontWeight = FontWeight.Black,
             modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
@@ -511,7 +506,12 @@ private fun sendWhatsAppNotification(context: Context, car: CarUi, document: Doc
 
     val message = buildClientMessage(car, document)
     val uri = Uri.parse("https://wa.me/$phone?text=${Uri.encode(message)}")
-    context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+
+    try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+    } catch (e: ActivityNotFoundException) {
+        Toast.makeText(context, "Nu s-a putut deschide WhatsApp.", Toast.LENGTH_LONG).show()
+    }
 }
 
 private fun sendEmailNotification(context: Context, car: CarUi, document: DocumentUi) {
@@ -524,7 +524,24 @@ private fun sendEmailNotification(context: Context, car: CarUi, document: Docume
         putExtra(Intent.EXTRA_TEXT, message)
     }
 
-    context.startActivity(intent)
+    try {
+        context.startActivity(intent)
+    } catch (e: ActivityNotFoundException) {
+        Toast.makeText(context, "Nu exista aplicatie de email instalata.", Toast.LENGTH_LONG).show()
+    }
+}
+
+private fun showNotificationToast(
+    context: Context,
+    car: CarUi,
+    document: DocumentUi
+) {
+    val clientName = car.ownerName.ifBlank { car.plate }
+    Toast.makeText(
+        context,
+        "Client notificat: $clientName - ${document.type}",
+        Toast.LENGTH_LONG
+    ).show()
 }
 
 private fun buildClientMessage(car: CarUi, document: DocumentUi): String {
