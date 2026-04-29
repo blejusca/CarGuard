@@ -320,8 +320,7 @@ private fun SearchBar(
             textStyle = MaterialTheme.typography.bodyLarge.copy(color = Color.White, fontSize = 14.sp),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(end = 2.dp)
-                .height(64.dp),
+                .height(56.dp),
             shape = RoundedCornerShape(26.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedTextColor = Color.White,
@@ -1050,7 +1049,7 @@ private fun LightField(
             unfocusedTextColor = Color.White,
             focusedLabelColor = Gold,
             unfocusedLabelColor = SoftText,
-            focusedBorderColor = Gold,
+            focusedBorderColor = Border,
             unfocusedBorderColor = Border,
             cursorColor = Gold,
             focusedContainerColor = CardBg,
@@ -1073,7 +1072,7 @@ private fun DarkField(value: String, onChange: (String) -> Unit, label: String) 
             unfocusedTextColor = Color.White,
             focusedLabelColor = Gold,
             unfocusedLabelColor = MutedText,
-            focusedBorderColor = Gold,
+            focusedBorderColor = Border,
             unfocusedBorderColor = Border,
             cursorColor = Gold,
             focusedContainerColor = CardBg,
@@ -1103,7 +1102,7 @@ private fun DatePickerDarkField(value: String, onChange: (String) -> Unit, label
             unfocusedTextColor = Color.White,
             focusedLabelColor = Gold,
             unfocusedLabelColor = MutedText,
-            focusedBorderColor = Gold,
+            focusedBorderColor = Border,
             unfocusedBorderColor = Border,
             cursorColor = Gold,
             focusedContainerColor = CardBg,
