@@ -429,7 +429,7 @@ private fun SummaryCard(
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.height(58.dp),
+        modifier = modifier.height(64.dp), // 🔥 marit de la 58dp
         colors = CardDefaults.cardColors(containerColor = if (selected) Navy else CardBg),
         border = BorderStroke(1.dp, if (selected) Gold else Border),
         shape = RoundedCornerShape(16.dp)
@@ -437,12 +437,27 @@ private fun SummaryCard(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 6.dp, vertical = 8.dp),
+                .padding(horizontal = 6.dp, vertical = 10.dp), // 🔥 padding corect
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Text(text = value, color = color, fontSize = 19.sp, fontWeight = FontWeight.Black, maxLines = 1)
-            Text(text = title, color = SoftText, fontSize = 10.sp, fontWeight = FontWeight.Medium, maxLines = 1, softWrap = false)
+            Text(
+                text = value,
+                color = color,
+                fontSize = 18.sp, // 🔥 redus de la 19
+                lineHeight = 20.sp, // 🔥 important pt clipping
+                fontWeight = FontWeight.Bold, // 🔥 nu Black
+                maxLines = 1
+            )
+
+            Text(
+                text = title,
+                color = SoftText,
+                fontSize = 11.sp,
+                lineHeight = 13.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1
+            )
         }
     }
 }
