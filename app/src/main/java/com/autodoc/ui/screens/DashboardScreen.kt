@@ -313,15 +313,15 @@ private fun SearchBar(
             value = value,
             onValueChange = onChange,
             singleLine = true,
-            placeholder = { Text("Cauta masina sau client", color = SoftText, fontSize = 15.sp) },
+            placeholder = { Text("Cauta masina sau client", color = SoftText, fontSize = 14.sp, maxLines = 1, softWrap = false) },
             leadingIcon = { Text("⌕", color = Gold, fontSize = 20.sp, fontWeight = FontWeight.Bold) },
             keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Search),
             keyboardActions = KeyboardActions(onSearch = { onSearch() }),
-            textStyle = MaterialTheme.typography.bodyLarge.copy(color = Color.White, fontSize = 15.sp),
+            textStyle = MaterialTheme.typography.bodyLarge.copy(color = Color.White, fontSize = 14.sp),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(end = 2.dp)
-                .height(52.dp),
+                .height(64.dp),
             shape = RoundedCornerShape(26.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedTextColor = Color.White,
@@ -344,7 +344,7 @@ private fun SearchBar(
                 shape = RoundedCornerShape(15.dp),
                 modifier = Modifier
                     .weight(1f)
-                    .height(42.dp)
+                    .height(44.dp)
             ) {
                 Text("Cauta", color = Navy, fontWeight = FontWeight.Black, fontSize = 15.sp)
             }
@@ -356,7 +356,7 @@ private fun SearchBar(
                 border = BorderStroke(1.dp, Border),
                 modifier = Modifier
                     .weight(1f)
-                    .height(42.dp)
+                    .height(44.dp)
             ) {
                 Text("Reseteaza", color = Gold, fontWeight = FontWeight.Bold, fontSize = 15.sp)
             }
@@ -1036,15 +1036,15 @@ private fun LightField(
         value = value,
         onValueChange = onChange,
         singleLine = true,
-        label = { Text(label, maxLines = 1, softWrap = false) },
+        label = { Text(label, maxLines = 1, softWrap = false, fontSize = 13.sp) },
         keyboardOptions = keyboardOptions,
         keyboardActions = keyboardActions,
-        textStyle = MaterialTheme.typography.bodyLarge.copy(color = Color.White, fontSize = 15.sp),
+        textStyle = MaterialTheme.typography.bodyLarge.copy(color = Color.White, fontSize = 14.sp),
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 2.dp)
-            .height(60.dp),
-        shape = RoundedCornerShape(18.dp),
+            .height(72.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = OutlinedTextFieldDefaults.colors(
             focusedTextColor = Color.White,
             unfocusedTextColor = Color.White,
