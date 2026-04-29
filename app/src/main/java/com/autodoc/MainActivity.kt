@@ -9,16 +9,17 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -28,8 +29,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.lifecycleScope
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
@@ -48,9 +50,11 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
 private val Navy = Color(0xFF111827)
+private val DeepBg = Color(0xFF0F1117)
 private val Gold = Color(0xFFD4AF37)
-private val SoftBg = Color(0xFFF5F1EA)
 private val Danger = Color(0xFFDC2626)
+private val Muted = Color(0xFF9CA3AF)
+private val NavBg = Color(0xFF111827)
 
 class MainActivity : ComponentActivity() {
 
@@ -116,112 +120,100 @@ class MainActivity : ComponentActivity() {
                 )
             }
 
-            Column(
+            Scaffold(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(SoftBg)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    NavigationButton(
-                        text = "Dashboard",
-                        selected = currentScreen == AppScreen.DASHBOARD,
-                        modifier = Modifier.weight(1f),
-                        onClick = { currentScreen = AppScreen.DASHBOARD }
-                    )
-
-                    NavigationButton(
-                        text = "Documente",
-                        selected = currentScreen == AppScreen.DOCUMENTS,
-                        modifier = Modifier.weight(1f),
-                        onClick = { currentScreen = AppScreen.DOCUMENTS }
-                    )
-
-                    NavigationButton(
-                        text = "Setari",
-                        selected = currentScreen == AppScreen.SETTINGS,
-                        modifier = Modifier.weight(1f),
-                        onClick = { currentScreen = AppScreen.SETTINGS }
+                    .background(DeepBg),
+                containerColor = DeepBg,
+                bottomBar = {
+                    BottomNavigationBar(
+                        currentScreen = currentScreen,
+                        onScreenSelected = { selectedScreen ->
+                            currentScreen = selectedScreen
+                        }
                     )
                 }
-
-                when (currentScreen) {
-                    AppScreen.DASHBOARD -> {
-                        DashboardScreen(
-                            cars = cars,
-                            onAddCar = { brand, model, plate, year, engine, ownerName, ownerPhone, ownerEmail, ownerNotes ->
-                                viewModel.addCar(
-                                    brand = brand,
-                                    model = model,
-                                    plate = plate,
-                                    year = year,
-                                    engine = engine,
-                                    ownerName = ownerName,
-                                    ownerPhone = ownerPhone,
-                                    ownerEmail = ownerEmail,
-                                    ownerNotes = ownerNotes
-                                )
-                            },
-                            onUpdateCar = { carId, brand, model, plate, year, engine, ownerName, ownerPhone, ownerEmail, ownerNotes ->
-                                viewModel.updateCar(
-                                    carId = carId,
-                                    brand = brand,
-                                    model = model,
-                                    plate = plate,
-                                    year = year,
-                                    engine = engine,
-                                    ownerName = ownerName,
-                                    ownerPhone = ownerPhone,
-                                    ownerEmail = ownerEmail,
-                                    ownerNotes = ownerNotes
-                                )
-                            },
-                            onAddDocument = { carId, type, expiry, days ->
-                                viewModel.addDocument(carId, type, expiry, days)
-                            },
-                            onDeleteDocument = { documentId ->
-                                viewModel.deleteDocument(documentId)
-                            },
-                            onUpdateDocumentExpiry = { documentId, expiryMillis ->
-                                viewModel.updateDocumentExpiry(documentId, expiryMillis)
-                            },
-                            onDeleteCar = { carId ->
-                                viewModel.deleteCar(carId)
-                            },
-                            onExportCarPdf = { car ->
-                                exportCarPdf(car)
-                            }
-                        )
-                    }
-
-                    AppScreen.DOCUMENTS -> {
-                        DocumentsScreen(
-                            cars = cars,
-                            onMarkDocumentManuallyNotified = { documentId ->
-                                viewModel.markDocumentManuallyNotified(documentId)
-                            }
-                        )
-                    }
-
-                    AppScreen.SETTINGS -> {
-                        SettingsScreen(
-                            onExportBackup = {
-                                exportBackupFile()
-                            },
-                            onImportBackup = {
-                                importBackupLauncher.launch(
-                                    arrayOf(
-                                        "application/json",
-                                        "text/plain",
-                                        "application/octet-stream"
+            ) { innerPadding ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(DeepBg)
+                        .padding(innerPadding)
+                ) {
+                    when (currentScreen) {
+                        AppScreen.DASHBOARD -> {
+                            DashboardScreen(
+                                cars = cars,
+                                onAddCar = { brand, model, plate, year, engine, ownerName, ownerPhone, ownerEmail, ownerNotes ->
+                                    viewModel.addCar(
+                                        brand = brand,
+                                        model = model,
+                                        plate = plate,
+                                        year = year,
+                                        engine = engine,
+                                        ownerName = ownerName,
+                                        ownerPhone = ownerPhone,
+                                        ownerEmail = ownerEmail,
+                                        ownerNotes = ownerNotes
                                     )
-                                )
-                            }
-                        )
+                                },
+                                onUpdateCar = { carId, brand, model, plate, year, engine, ownerName, ownerPhone, ownerEmail, ownerNotes ->
+                                    viewModel.updateCar(
+                                        carId = carId,
+                                        brand = brand,
+                                        model = model,
+                                        plate = plate,
+                                        year = year,
+                                        engine = engine,
+                                        ownerName = ownerName,
+                                        ownerPhone = ownerPhone,
+                                        ownerEmail = ownerEmail,
+                                        ownerNotes = ownerNotes
+                                    )
+                                },
+                                onAddDocument = { carId, type, expiry, days ->
+                                    viewModel.addDocument(carId, type, expiry, days)
+                                },
+                                onDeleteDocument = { documentId ->
+                                    viewModel.deleteDocument(documentId)
+                                },
+                                onUpdateDocumentExpiry = { documentId, expiryMillis ->
+                                    viewModel.updateDocumentExpiry(documentId, expiryMillis)
+                                },
+                                onDeleteCar = { carId ->
+                                    viewModel.deleteCar(carId)
+                                },
+                                onExportCarPdf = { car ->
+                                    exportCarPdf(car)
+                                }
+                            )
+                        }
+
+                        AppScreen.DOCUMENTS -> {
+                            DocumentsScreen(
+                                cars = cars,
+                                onMarkDocumentManuallyNotified = { documentId ->
+                                    viewModel.markDocumentManuallyNotified(documentId)
+                                }
+                            )
+                        }
+
+                        AppScreen.SETTINGS -> {
+                            SettingsScreen(
+                                onExportBackup = {
+                                    exportBackupFile()
+                                },
+                                onImportBackup = {
+                                    importBackupLauncher.launch(
+                                        arrayOf(
+                                            "application/json",
+                                            "text/plain",
+                                            "application/octet-stream"
+                                        )
+                                    )
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -364,27 +356,84 @@ private enum class AppScreen {
 }
 
 @Composable
-private fun NavigationButton(
-    text: String,
-    selected: Boolean,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
+private fun BottomNavigationBar(
+    currentScreen: AppScreen,
+    onScreenSelected: (AppScreen) -> Unit
 ) {
-    Button(
-        onClick = onClick,
-        modifier = modifier,
-        shape = RoundedCornerShape(18.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (selected) Navy else Gold
-        )
+    NavigationBar(
+        containerColor = NavBg,
+        contentColor = Color.White
     ) {
-        Text(
-            text = text,
-            color = if (selected) Color.White else Navy,
-            fontWeight = FontWeight.Bold
+        NavigationBarItem(
+            selected = currentScreen == AppScreen.DASHBOARD,
+            onClick = { onScreenSelected(AppScreen.DASHBOARD) },
+            icon = {
+                Text(
+                    text = "⌂",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            label = {
+                Text(
+                    text = "Dashboard",
+                    maxLines = 1,
+                    fontWeight = FontWeight.SemiBold
+                )
+            },
+            colors = navItemColors()
+        )
+
+        NavigationBarItem(
+            selected = currentScreen == AppScreen.DOCUMENTS,
+            onClick = { onScreenSelected(AppScreen.DOCUMENTS) },
+            icon = {
+                Text(
+                    text = "▤",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            label = {
+                Text(
+                    text = "Documente",
+                    maxLines = 1,
+                    fontWeight = FontWeight.SemiBold
+                )
+            },
+            colors = navItemColors()
+        )
+
+        NavigationBarItem(
+            selected = currentScreen == AppScreen.SETTINGS,
+            onClick = { onScreenSelected(AppScreen.SETTINGS) },
+            icon = {
+                Text(
+                    text = "⚙",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            label = {
+                Text(
+                    text = "Setari",
+                    maxLines = 1,
+                    fontWeight = FontWeight.SemiBold
+                )
+            },
+            colors = navItemColors()
         )
     }
 }
+
+@Composable
+private fun navItemColors() = NavigationBarItemDefaults.colors(
+    selectedIconColor = Gold,
+    selectedTextColor = Gold,
+    indicatorColor = Color(0xFF1F2937),
+    unselectedIconColor = Muted,
+    unselectedTextColor = Muted
+)
 
 @Composable
 private fun ConfirmImportBackupDialog(
