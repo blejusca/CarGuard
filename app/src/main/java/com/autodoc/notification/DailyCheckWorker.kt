@@ -26,42 +26,41 @@ class DailyCheckWorker(
 
             var expiredCount = 0
             var todayCount = 0
+            var tomorrowCount = 0
             var soonCount = 0
             var clientsToNotify = 0
 
-            documents.forEach { doc ->
-                val car = carDao.getCarById(doc.carId) ?: return@forEach
+            documents.forEach { document ->
+                val car = carDao.getCarById(document.carId) ?: return@forEach
 
-                val expiryDate = Instant.ofEpochMilli(doc.expiryDate)
+                val expiryDate = Instant.ofEpochMilli(document.expiryDate)
                     .atZone(ZoneId.systemDefault())
                     .toLocalDate()
 
                 val daysLeft = ChronoUnit.DAYS.between(today, expiryDate).toInt()
 
-                val hasContact =
-                    car.ownerPhone.isNotBlank() || car.ownerEmail.isNotBlank()
+                val hasContact = car.ownerPhone.isNotBlank() || car.ownerEmail.isNotBlank()
+                val isInReminderWindow = daysLeft <= document.reminderDaysBefore
 
                 when {
                     daysLeft < 0 -> expiredCount++
                     daysLeft == 0 -> todayCount++
-                    daysLeft in 1..doc.reminderDaysBefore -> soonCount++
+                    daysLeft == 1 -> tomorrowCount++
+                    daysLeft in 2..document.reminderDaysBefore -> soonCount++
                 }
 
-                if (
-                    hasContact &&
-                    daysLeft <= doc.reminderDaysBefore
-                ) {
+                if (hasContact && isInReminderWindow) {
                     clientsToNotify++
                 }
             }
 
-            val totalUrgent = expiredCount + todayCount + soonCount
+            val totalImportant = expiredCount + todayCount + tomorrowCount + soonCount
 
-            if (totalUrgent > 0) {
+            if (totalImportant > 0) {
                 val title = "Documente auto de verificat"
 
                 val message = buildString {
-                    append("$totalUrgent documente necesita atentie.")
+                    append("$totalImportant documente necesita atentie.")
 
                     if (expiredCount > 0) {
                         append(" Expirate: $expiredCount.")
@@ -69,6 +68,10 @@ class DailyCheckWorker(
 
                     if (todayCount > 0) {
                         append(" Expira azi: $todayCount.")
+                    }
+
+                    if (tomorrowCount > 0) {
+                        append(" Expira maine: $tomorrowCount.")
                     }
 
                     if (soonCount > 0) {
