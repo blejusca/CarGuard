@@ -249,8 +249,8 @@ class MainActivity : ComponentActivity() {
                                         )
                                     },
                                     isProPlan = isProPlan,
-                                    onToggleProPlanForTest = { enabled ->
-                                        viewModel.setProPlanForTest(enabled)
+                                    onToggleProPlan = { enabled ->
+                                        viewModel.setProPlan(enabled)
                                     }
                                 )
                             }
@@ -304,9 +304,9 @@ class MainActivity : ComponentActivity() {
                 Toast.makeText(
                     this@MainActivity,
                     if (success) {
-                        "Datele au fost restaurate complet si notificarile au fost reprogramate."
+                        "Date restaurate complet. Backup de siguranta creat inainte de import si notificari reprogramate."
                     } else {
-                        "Fisier backup invalid sau incomplet."
+                        "Fisier backup invalid, incomplet sau fara masini valide. Datele existente nu au fost sterse."
                     },
                     Toast.LENGTH_LONG
                 ).show()
@@ -492,7 +492,7 @@ private fun ConfirmImportBackupDialog(
         },
         text = {
             Text(
-                text = "Atentie: importul va sterge toate datele existente din aplicatie si le va inlocui cu datele din fisierul backup selectat.\n\nContinui?"
+                text = "Atentie: importul va crea automat un backup de siguranta, apoi va sterge datele existente si le va inlocui cu datele din fisierul selectat.\n\nContinui?"
             )
         },
         confirmButton = {

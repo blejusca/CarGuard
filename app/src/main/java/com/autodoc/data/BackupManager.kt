@@ -20,6 +20,10 @@ object BackupManager {
 
     private const val BACKUP_VERSION = 1
 
+    private const val AUTO_BACKUP_FILE_NAME = "autodoc_backup.json"
+    private const val PRE_IMPORT_BACKUP_FILE_NAME = "autodoc_pre_import_backup.json"
+    private const val MANUAL_BACKUP_FILE_NAME = "autodoc_backup.json"
+
     suspend fun saveBackupToFile(context: Context): File {
         return withContext(Dispatchers.IO) {
             val db = DatabaseProvider.getDatabase(context)
@@ -31,7 +35,26 @@ object BackupManager {
 
             val file = File(
                 context.getExternalFilesDir(null),
-                "autodoc_backup.json"
+                AUTO_BACKUP_FILE_NAME
+            )
+
+            file.writeText(json)
+            file
+        }
+    }
+
+    suspend fun savePreImportSafetyBackup(context: Context): File {
+        return withContext(Dispatchers.IO) {
+            val db = DatabaseProvider.getDatabase(context)
+
+            val cars = db.carDao().getAllCarsSync()
+            val documents = db.documentDao().getAllDocumentsSync()
+
+            val json = buildJson(cars, documents)
+
+            val file = File(
+                context.getExternalFilesDir(null),
+                PRE_IMPORT_BACKUP_FILE_NAME
             )
 
             file.writeText(json)
@@ -48,7 +71,7 @@ object BackupManager {
                 val documents = db.documentDao().getAllDocumentsSync()
 
                 val json = buildJson(cars, documents)
-                val fileName = "autodoc_backup.json"
+                val fileName = MANUAL_BACKUP_FILE_NAME
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     val resolver = context.contentResolver
@@ -123,72 +146,35 @@ object BackupManager {
                 val carsArray = root.getJSONArray("cars")
                 val documentsArray = root.getJSONArray("documents")
 
+                val parsedCars = parseCarsArray(carsArray)
+                val parsedDocuments = parseDocumentsArray(documentsArray)
+
+                if (parsedCars.isEmpty()) {
+                    return@withContext false
+                }
+
+                savePreImportSafetyBackup(context)
+
                 db.documentDao().deleteAll()
                 db.carDao().deleteAll()
 
                 val carIdMap = mutableMapOf<Int, Long>()
                 val importedCarsByNewId = mutableMapOf<Int, CarEntity>()
 
-                for (i in 0 until carsArray.length()) {
-                    val obj = carsArray.getJSONObject(i)
+                parsedCars.forEach { parsedCar ->
+                    val newId = db.carDao().insert(parsedCar.car)
 
-                    val oldId = obj.optInt("id", 0)
-                    val brand = obj.optString("brand", "").trim()
-                    val model = obj.optString("model", "").trim()
-                    val plate = obj.optString("plate", "").trim().uppercase()
-
-                    if (oldId <= 0 || brand.isBlank() || model.isBlank() || plate.isBlank()) {
-                        continue
-                    }
-
-                    val carToInsert = CarEntity(
-                        id = 0,
-                        brand = brand,
-                        model = model,
-                        plate = plate,
-                        year = obj.optInt("year", 0),
-                        engine = obj.optString("engine", "").trim().ifBlank { "Nespecificat" },
-                        ownerName = obj.optString("ownerName", "").trim(),
-                        ownerPhone = obj.optString("ownerPhone", "").trim(),
-                        ownerEmail = obj.optString("ownerEmail", "").trim(),
-                        ownerNotes = obj.optString("ownerNotes", "").trim()
-                    )
-
-                    val newId = db.carDao().insert(carToInsert)
-
-                    carIdMap[oldId] = newId
-                    importedCarsByNewId[newId.toInt()] = carToInsert.copy(id = newId.toInt())
+                    carIdMap[parsedCar.oldId] = newId
+                    importedCarsByNewId[newId.toInt()] = parsedCar.car.copy(id = newId.toInt())
                 }
 
-                for (i in 0 until documentsArray.length()) {
-                    val obj = documentsArray.getJSONObject(i)
+                parsedDocuments.forEach { parsedDocument ->
+                    val newCarId = carIdMap[parsedDocument.oldCarId]?.toInt()
+                        ?: return@forEach
 
-                    val oldCarId = obj.optInt("carId", 0)
-                    val newCarId = carIdMap[oldCarId]?.toInt() ?: continue
-
-                    val cleanType = normalizeDocumentType(
-                        obj.optString("type", "")
-                    )
-
-                    val expiryDate = obj.optLong("expiryDate", 0L)
-                    val reminderDaysBefore = obj
-                        .optInt("reminderDaysBefore", 7)
-                        .coerceAtLeast(0)
-
-                    if (cleanType.isBlank() || expiryDate <= 0L) {
-                        continue
-                    }
-
-                    val documentToInsert = DocumentEntity(
+                    val documentToInsert = parsedDocument.document.copy(
                         id = 0,
-                        carId = newCarId,
-                        type = cleanType,
-                        expiryDate = expiryDate,
-                        reminderDaysBefore = reminderDaysBefore,
-                        notifiedExpired = obj.optBoolean("notifiedExpired", false),
-                        notifiedToday = obj.optBoolean("notifiedToday", false),
-                        notifiedTomorrow = obj.optBoolean("notifiedTomorrow", false),
-                        notifiedReminder = obj.optBoolean("notifiedReminder", false)
+                        carId = newCarId
                     )
 
                     val newDocumentId = db.documentDao().insert(documentToInsert).toInt()
@@ -215,6 +201,85 @@ object BackupManager {
                 false
             }
         }
+    }
+
+    private fun parseCarsArray(carsArray: JSONArray): List<ParsedCar> {
+        val result = mutableListOf<ParsedCar>()
+
+        for (i in 0 until carsArray.length()) {
+            val obj = carsArray.getJSONObject(i)
+
+            val oldId = obj.optInt("id", 0)
+            val brand = obj.optString("brand", "").trim()
+            val model = obj.optString("model", "").trim()
+            val plate = obj.optString("plate", "").trim().uppercase()
+
+            if (oldId <= 0 || brand.isBlank() || model.isBlank() || plate.isBlank()) {
+                continue
+            }
+
+            val car = CarEntity(
+                id = 0,
+                brand = brand,
+                model = model,
+                plate = plate,
+                year = obj.optInt("year", 0),
+                engine = obj.optString("engine", "").trim().ifBlank { "Nespecificat" },
+                ownerName = obj.optString("ownerName", "").trim(),
+                ownerPhone = obj.optString("ownerPhone", "").trim(),
+                ownerEmail = obj.optString("ownerEmail", "").trim(),
+                ownerNotes = obj.optString("ownerNotes", "").trim()
+            )
+
+            result.add(
+                ParsedCar(
+                    oldId = oldId,
+                    car = car
+                )
+            )
+        }
+
+        return result
+    }
+
+    private fun parseDocumentsArray(documentsArray: JSONArray): List<ParsedDocument> {
+        val result = mutableListOf<ParsedDocument>()
+
+        for (i in 0 until documentsArray.length()) {
+            val obj = documentsArray.getJSONObject(i)
+
+            val oldCarId = obj.optInt("carId", 0)
+            val cleanType = normalizeDocumentType(obj.optString("type", ""))
+            val expiryDate = obj.optLong("expiryDate", 0L)
+            val reminderDaysBefore = obj
+                .optInt("reminderDaysBefore", 7)
+                .coerceAtLeast(0)
+
+            if (oldCarId <= 0 || cleanType.isBlank() || expiryDate <= 0L) {
+                continue
+            }
+
+            val document = DocumentEntity(
+                id = 0,
+                carId = 0,
+                type = cleanType,
+                expiryDate = expiryDate,
+                reminderDaysBefore = reminderDaysBefore,
+                notifiedExpired = obj.optBoolean("notifiedExpired", false),
+                notifiedToday = obj.optBoolean("notifiedToday", false),
+                notifiedTomorrow = obj.optBoolean("notifiedTomorrow", false),
+                notifiedReminder = obj.optBoolean("notifiedReminder", false)
+            )
+
+            result.add(
+                ParsedDocument(
+                    oldCarId = oldCarId,
+                    document = document
+                )
+            )
+        }
+
+        return result
     }
 
     private fun buildJson(
@@ -262,4 +327,14 @@ object BackupManager {
 
         return root.toString(2)
     }
+
+    private data class ParsedCar(
+        val oldId: Int,
+        val car: CarEntity
+    )
+
+    private data class ParsedDocument(
+        val oldCarId: Int,
+        val document: DocumentEntity
+    )
 }

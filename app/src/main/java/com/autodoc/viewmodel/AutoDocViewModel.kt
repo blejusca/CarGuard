@@ -26,10 +26,6 @@ class AutoDocViewModel(
     private val appPlanManager: AppPlanManager
 ) : ViewModel() {
 
-    companion object {
-        private const val FREE_PLAN_MAX_CARS = 3
-    }
-
     private val _isProPlan = MutableStateFlow(appPlanManager.isProPlan())
     val isProPlan: StateFlow<Boolean> = _isProPlan.asStateFlow()
 
@@ -49,14 +45,14 @@ class AutoDocViewModel(
         initialValue = emptyList()
     )
 
-    fun setProPlanForTest(enabled: Boolean) {
+    fun setProPlan(enabled: Boolean) {
         appPlanManager.setProPlan(enabled)
-        _isProPlan.value = enabled
+        _isProPlan.value = appPlanManager.isProPlan()
 
-        _userMessage.value = if (enabled) {
-            "Plan Pro activat pentru test. Limita de masini este dezactivata."
+        _userMessage.value = if (_isProPlan.value) {
+            "Plan Pro activ. Limita de masini este dezactivata."
         } else {
-            "Plan Free activ. Poti adauga maximum $FREE_PLAN_MAX_CARS masini."
+            "Plan Free activ. Poti adauga maximum ${appPlanManager.getFreePlanMaxCars()} masini."
         }
     }
 
@@ -91,10 +87,12 @@ class AutoDocViewModel(
 
         viewModelScope.launch {
             val currentCarsCount = cars.value.size
+            val maxFreeCars = appPlanManager.getFreePlanMaxCars()
 
-            if (!_isProPlan.value && currentCarsCount >= FREE_PLAN_MAX_CARS) {
+            if (!appPlanManager.isProPlan() && currentCarsCount >= maxFreeCars) {
+                _isProPlan.value = false
                 _userMessage.value =
-                    "Ai atins limita planului Free: maximum $FREE_PLAN_MAX_CARS masini. Activeaza Pro pentru masini nelimitate."
+                    "Ai atins limita planului Free: maximum $maxFreeCars masini. Activeaza Pro pentru masini nelimitate."
                 return@launch
             }
 

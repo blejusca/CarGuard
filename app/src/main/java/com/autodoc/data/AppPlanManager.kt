@@ -19,7 +19,19 @@ class AppPlanManager(context: Context) {
             .apply()
     }
 
+    fun getCurrentPlanName(): String {
+        return if (isProPlan()) PLAN_PRO else PLAN_FREE
+    }
+
+    fun getFreePlanMaxCars(): Int {
+        return FREE_PLAN_MAX_CARS
+    }
+
     companion object {
+        const val PLAN_FREE = "Free"
+        const val PLAN_PRO = "Pro"
+        const val FREE_PLAN_MAX_CARS = 3
+
         private const val PREFS_NAME = "autodoc_plan_preferences"
         private const val KEY_IS_PRO_PLAN = "is_pro_plan"
     }

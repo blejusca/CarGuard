@@ -30,7 +30,7 @@ fun SettingsScreen(
     onExportBackup: () -> Unit,
     onImportBackup: () -> Unit,
     isProPlan: Boolean,
-    onToggleProPlanForTest: (Boolean) -> Unit
+    onToggleProPlan: (Boolean) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -44,7 +44,7 @@ fun SettingsScreen(
 
         PlanSettingsCard(
             isProPlan = isProPlan,
-            onToggleProPlanForTest = onToggleProPlanForTest
+            onToggleProPlan = onToggleProPlan
         )
 
         BackupSettingsCard(
@@ -89,17 +89,17 @@ private fun SettingsHeaderCard() {
 @Composable
 private fun PlanSettingsCard(
     isProPlan: Boolean,
-    onToggleProPlanForTest: (Boolean) -> Unit
+    onToggleProPlan: (Boolean) -> Unit
 ) {
     val planTitle = if (isProPlan) "Plan Pro" else "Plan Free"
 
     val planDescription = if (isProPlan) {
-        "Ai acces la masini nelimitate. Acesta este un mod de test, fara plata reala."
+        "Ai acces la masini nelimitate. Planul Pro este activ pe acest dispozitiv."
     } else {
-        "Planul Free permite maximum 3 masini. Pentru masini nelimitate, activeaza Pro."
+        "Planul Free permite maximum 3 masini. Planul Pro deblocheaza masini nelimitate."
     }
 
-    val buttonText = if (isProPlan) "Revino la Free test" else "Activeaza Pro test"
+    val buttonText = if (isProPlan) "Comuta la Free" else "Activeaza Pro"
     val buttonColor = if (isProPlan) AppColors.Danger else AppColors.Gold
     val buttonTextColor = if (isProPlan) Color.White else AppColors.Navy
 
@@ -135,7 +135,7 @@ private fun PlanSettingsCard(
             )
 
             Button(
-                onClick = { onToggleProPlanForTest(!isProPlan) },
+                onClick = { onToggleProPlan(!isProPlan) },
                 colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
                 shape = RoundedCornerShape(18.dp),
                 modifier = Modifier
@@ -151,7 +151,7 @@ private fun PlanSettingsCard(
             }
 
             Text(
-                text = "Nota: activarea Pro este temporara pentru test. Plata reala prin Google Billing se va implementa ulterior.",
+                text = "Nota: controlul planului este local. Integrarea Google Billing se poate adauga ulterior, fara schimbarea structurii actuale.",
                 color = AppColors.SoftText,
                 fontSize = 13.sp,
                 lineHeight = 18.sp
@@ -288,7 +288,7 @@ private fun AppInfoCard() {
             )
 
             Text(
-                text = "• evidenta masini si clienti\n• documente auto: ITP, RCA, CASCO, Rovinieta, Revizie\n• notificari pentru documente expirate sau aproape de expirare\n• notificare client prin WhatsApp sau email\n• export raport PDF pentru masina\n• backup manual si backup automat\n• restaurare date din fisier backup",
+                text = "• evidenta masini si clienti\n• documente auto: ITP, RCA, CASCO, Rovinieta, Revizie\n• notificari pentru documente expirate sau aproape de expirare\n• notificare client prin WhatsApp sau email\n• export raport PDF pentru masina\n• backup manual si backup automat\n• restaurare date din fisier backup\n• plan Free / Pro local",
                 color = AppColors.SoftText,
                 fontSize = 14.sp,
                 lineHeight = 20.sp
