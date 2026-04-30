@@ -29,7 +29,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -60,6 +59,8 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var viewModel: AutoDocViewModel
 
+    private var currentScreen: AppScreen by mutableStateOf(AppScreen.DASHBOARD)
+
     private val notificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {
             // Aplicatia ramane functionala chiar daca permisiunea este refuzata.
@@ -82,6 +83,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        currentScreen = AppScreen.DASHBOARD
+
         requestNotificationPermissionIfNeeded()
         scheduleDailyDocumentCheck()
 
@@ -96,7 +99,6 @@ class MainActivity : ComponentActivity() {
         setContent {
             AutoDocTheme(dynamicColor = false) {
                 val cars by viewModel.cars.collectAsState()
-                var currentScreen by remember { mutableStateOf(AppScreen.DASHBOARD) }
 
                 if (showImportConfirmDialog) {
                     ConfirmImportBackupDialog(
@@ -220,6 +222,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onRestart() {
+        super.onRestart()
+        currentScreen = AppScreen.DASHBOARD
     }
 
     private fun exportBackupFile() {
