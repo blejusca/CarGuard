@@ -49,8 +49,11 @@ import com.autodoc.ui.CarUi
 import com.autodoc.ui.screens.DashboardScreen
 import com.autodoc.ui.screens.DocumentsScreen
 import com.autodoc.ui.screens.SettingsScreen
+import com.autodoc.ui.theme.AutoDocTheme
 import com.autodoc.viewmodel.AutoDocViewModel
 import kotlinx.coroutines.launch
+import java.time.Duration
+import java.time.LocalDateTime
 import java.util.concurrent.TimeUnit
 
 class MainActivity : ComponentActivity() {
@@ -91,125 +94,127 @@ class MainActivity : ComponentActivity() {
         )
 
         setContent {
-            val cars by viewModel.cars.collectAsState()
-            var currentScreen by remember { mutableStateOf(AppScreen.DASHBOARD) }
+            AutoDocTheme(dynamicColor = false) {
+                val cars by viewModel.cars.collectAsState()
+                var currentScreen by remember { mutableStateOf(AppScreen.DASHBOARD) }
 
-            if (showImportConfirmDialog) {
-                ConfirmImportBackupDialog(
-                    onConfirm = {
-                        val uriToImport = selectedImportUri
-                        showImportConfirmDialog = false
-                        selectedImportUri = null
+                if (showImportConfirmDialog) {
+                    ConfirmImportBackupDialog(
+                        onConfirm = {
+                            val uriToImport = selectedImportUri
+                            showImportConfirmDialog = false
+                            selectedImportUri = null
 
-                        if (uriToImport != null) {
-                            importBackupFile(uriToImport)
-                        }
-                    },
-                    onDismiss = {
-                        showImportConfirmDialog = false
-                        selectedImportUri = null
-                        Toast.makeText(
-                            this@MainActivity,
-                            "Import anulat.",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                )
-            }
-
-            Scaffold(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(AppColors.DeepBg),
-                containerColor = AppColors.DeepBg,
-                bottomBar = {
-                    BottomNavigationBar(
-                        currentScreen = currentScreen,
-                        onScreenSelected = { selectedScreen ->
-                            currentScreen = selectedScreen
+                            if (uriToImport != null) {
+                                importBackupFile(uriToImport)
+                            }
+                        },
+                        onDismiss = {
+                            showImportConfirmDialog = false
+                            selectedImportUri = null
+                            Toast.makeText(
+                                this@MainActivity,
+                                "Import anulat.",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                     )
                 }
-            ) { innerPadding ->
-                Box(
+
+                Scaffold(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(AppColors.DeepBg)
-                        .padding(innerPadding)
-                ) {
-                    when (currentScreen) {
-                        AppScreen.DASHBOARD -> {
-                            DashboardScreen(
-                                cars = cars,
-                                onAddCar = { brand, model, plate, year, engine, ownerName, ownerPhone, ownerEmail, ownerNotes ->
-                                    viewModel.addCar(
-                                        brand = brand,
-                                        model = model,
-                                        plate = plate,
-                                        year = year,
-                                        engine = engine,
-                                        ownerName = ownerName,
-                                        ownerPhone = ownerPhone,
-                                        ownerEmail = ownerEmail,
-                                        ownerNotes = ownerNotes
-                                    )
-                                },
-                                onUpdateCar = { carId, brand, model, plate, year, engine, ownerName, ownerPhone, ownerEmail, ownerNotes ->
-                                    viewModel.updateCar(
-                                        carId = carId,
-                                        brand = brand,
-                                        model = model,
-                                        plate = plate,
-                                        year = year,
-                                        engine = engine,
-                                        ownerName = ownerName,
-                                        ownerPhone = ownerPhone,
-                                        ownerEmail = ownerEmail,
-                                        ownerNotes = ownerNotes
-                                    )
-                                },
-                                onAddDocument = { carId, type, expiry, days ->
-                                    viewModel.addDocument(carId, type, expiry, days)
-                                },
-                                onDeleteDocument = { documentId ->
-                                    viewModel.deleteDocument(documentId)
-                                },
-                                onUpdateDocumentExpiry = { documentId, expiryMillis ->
-                                    viewModel.updateDocumentExpiry(documentId, expiryMillis)
-                                },
-                                onDeleteCar = { carId ->
-                                    viewModel.deleteCar(carId)
-                                },
-                                onExportCarPdf = { car ->
-                                    exportCarPdf(car)
-                                }
-                            )
-                        }
-
-                        AppScreen.DOCUMENTS -> {
-                            DocumentsScreen(
-                                cars = cars,
-                                onMarkDocumentManuallyNotified = { documentId ->
-                                    viewModel.markDocumentManuallyNotified(documentId)
-                                }
-                            )
-                        }
-
-                        AppScreen.SETTINGS -> {
-                            SettingsScreen(
-                                onExportBackup = {
-                                    exportBackupFile()
-                                },
-                                onImportBackup = {
-                                    importBackupLauncher.launch(
-                                        arrayOf(
-                                            "application/json",
-                                            "text/plain",
-                                            "application/octet-stream"
+                        .background(AppColors.DeepBg),
+                    containerColor = AppColors.DeepBg,
+                    bottomBar = {
+                        BottomNavigationBar(
+                            currentScreen = currentScreen,
+                            onScreenSelected = { selectedScreen ->
+                                currentScreen = selectedScreen
+                            }
+                        )
+                    }
+                ) { innerPadding ->
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(AppColors.DeepBg)
+                            .padding(innerPadding)
+                    ) {
+                        when (currentScreen) {
+                            AppScreen.DASHBOARD -> {
+                                DashboardScreen(
+                                    cars = cars,
+                                    onAddCar = { brand, model, plate, year, engine, ownerName, ownerPhone, ownerEmail, ownerNotes ->
+                                        viewModel.addCar(
+                                            brand = brand,
+                                            model = model,
+                                            plate = plate,
+                                            year = year,
+                                            engine = engine,
+                                            ownerName = ownerName,
+                                            ownerPhone = ownerPhone,
+                                            ownerEmail = ownerEmail,
+                                            ownerNotes = ownerNotes
                                         )
-                                    )
-                                }
-                            )
+                                    },
+                                    onUpdateCar = { carId, brand, model, plate, year, engine, ownerName, ownerPhone, ownerEmail, ownerNotes ->
+                                        viewModel.updateCar(
+                                            carId = carId,
+                                            brand = brand,
+                                            model = model,
+                                            plate = plate,
+                                            year = year,
+                                            engine = engine,
+                                            ownerName = ownerName,
+                                            ownerPhone = ownerPhone,
+                                            ownerEmail = ownerEmail,
+                                            ownerNotes = ownerNotes
+                                        )
+                                    },
+                                    onAddDocument = { carId, type, expiry, days ->
+                                        viewModel.addDocument(carId, type, expiry, days)
+                                    },
+                                    onDeleteDocument = { documentId ->
+                                        viewModel.deleteDocument(documentId)
+                                    },
+                                    onUpdateDocumentExpiry = { documentId, expiryMillis ->
+                                        viewModel.updateDocumentExpiry(documentId, expiryMillis)
+                                    },
+                                    onDeleteCar = { carId ->
+                                        viewModel.deleteCar(carId)
+                                    },
+                                    onExportCarPdf = { car ->
+                                        exportCarPdf(car)
+                                    }
+                                )
+                            }
+
+                            AppScreen.DOCUMENTS -> {
+                                DocumentsScreen(
+                                    cars = cars,
+                                    onMarkDocumentManuallyNotified = { documentId ->
+                                        viewModel.markDocumentManuallyNotified(documentId)
+                                    }
+                                )
+                            }
+
+                            AppScreen.SETTINGS -> {
+                                SettingsScreen(
+                                    onExportBackup = {
+                                        exportBackupFile()
+                                    },
+                                    onImportBackup = {
+                                        importBackupLauncher.launch(
+                                            arrayOf(
+                                                "application/json",
+                                                "text/plain",
+                                                "application/octet-stream"
+                                            )
+                                        )
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -302,22 +307,21 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun scheduleDailyDocumentCheck() {
-        val now = java.time.LocalDateTime.now()
+        val now = LocalDateTime.now()
 
-        val nextRun = now
+        val todayAtNine = now
             .withHour(9)
             .withMinute(0)
             .withSecond(0)
             .withNano(0)
-            .let { todayAtNine ->
-                if (todayAtNine.isBefore(now)) {
-                    todayAtNine.plusDays(1)
-                } else {
-                    todayAtNine
-                }
-            }
 
-        val delayMillis = java.time.Duration.between(now, nextRun).toMillis()
+        val nextRun = if (todayAtNine.isAfter(now)) {
+            todayAtNine
+        } else {
+            todayAtNine.plusDays(1)
+        }
+
+        val delayMillis = Duration.between(now, nextRun).toMillis()
 
         val request = PeriodicWorkRequestBuilder<DailyCheckWorker>(
             1,

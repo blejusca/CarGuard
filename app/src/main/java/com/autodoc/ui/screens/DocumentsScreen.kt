@@ -1,6 +1,5 @@
 package com.autodoc.ui.screens
 
-import com.autodoc.ui.AppColors
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -36,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.autodoc.ui.AppColors
 import com.autodoc.ui.CarUi
 import com.autodoc.ui.DocumentSeverity
 import com.autodoc.ui.DocumentUi
@@ -240,10 +240,13 @@ private fun HeaderDocuments(
             }
         }
 
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             SummaryBox("Exp", expiredDocuments.toString(), Danger, Modifier.weight(1f))
+            SummaryBox("Urg", urgentDocuments.toString(), Danger, Modifier.weight(1f))
             SummaryBox("Cur", soonDocuments.toString(), Warning, Modifier.weight(1f))
-            SummaryBox("OK", okDocuments.toString(), Ok, Modifier.weight(1f))
             SummaryBox("Notif", clientsToNotify.toString(), Gold, Modifier.weight(1f))
         }
     }
@@ -257,7 +260,7 @@ private fun SummaryBox(
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.height(58.dp),
+        modifier = modifier.height(68.dp),
         colors = CardDefaults.cardColors(containerColor = CardBg),
         border = BorderStroke(1.dp, Border),
         shape = RoundedCornerShape(16.dp)
@@ -265,12 +268,28 @@ private fun SummaryBox(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 6.dp, vertical = 8.dp),
+                .padding(horizontal = 4.dp, vertical = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(text = value, color = color, fontSize = 19.sp, fontWeight = FontWeight.Black, maxLines = 1)
-            Text(text = title, color = SoftText, fontSize = 10.sp, fontWeight = FontWeight.Medium, maxLines = 1, softWrap = false)
+            Text(
+                text = value,
+                color = color,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Black,
+                maxLines = 1,
+                textAlign = TextAlign.Center
+            )
+
+            Text(
+                text = title,
+                color = SoftText,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                softWrap = false,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
@@ -595,6 +614,7 @@ private fun statusText(document: DocumentUi): String {
             val days = abs(document.daysLeft)
             "expirat de $days ${if (days == 1) "zi" else "zile"}"
         }
+
         document.daysLeft == 0 -> "expira azi"
         document.daysLeft == 1 -> "expira maine"
         else -> "expira in ${document.daysLeft} zile"

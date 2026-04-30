@@ -1,6 +1,5 @@
 package com.autodoc.ui.screens
 
-import com.autodoc.ui.AppColors
 import com.autodoc.ui.severity
 import com.autodoc.ui.shouldNotifyClient
 import android.content.Context
@@ -63,6 +62,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.autodoc.ui.AppColors
 import com.autodoc.ui.CarUi
 import com.autodoc.ui.DocumentSeverity
 import com.autodoc.ui.DocumentUi
