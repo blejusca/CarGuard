@@ -1,7 +1,5 @@
 package com.autodoc.ui.screens
 
-import com.autodoc.ui.severity
-import com.autodoc.ui.shouldNotifyClient
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -66,12 +64,18 @@ import com.autodoc.ui.AppColors
 import com.autodoc.ui.CarUi
 import com.autodoc.ui.DocumentSeverity
 import com.autodoc.ui.DocumentUi
-import java.time.Instant
+import com.autodoc.ui.documentStatusText
+import com.autodoc.ui.formatDate
+import com.autodoc.ui.normalizeDocumentType
+import com.autodoc.ui.parseDate
+import com.autodoc.ui.parseDateToMillis
+import com.autodoc.ui.severity
+import com.autodoc.ui.shouldNotifyClient
 import java.time.LocalDate
+import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlin.math.abs
-
 
 private enum class DashboardFilter {
     ALL,
@@ -807,7 +811,7 @@ private fun PremiumCarCard(
             Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(text = "${car.documents.size} ${if (car.documents.size == 1) "document" else "documente"}", color = Gold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                 Text(
-                    text = mostUrgent?.let { "${it.type}: ${documentStatusText(it)}" } ?: "Fara documente",
+                    text = mostUrgent?.let { "${it.type}: ${documentStatusText(it.daysLeft)}" } ?: "Fara documente",
                     color = mostUrgent?.let { statusColor(it) } ?: MutedText,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
@@ -922,7 +926,7 @@ private fun DocumentRow(
     }
 
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(text = "${document.type} - ${documentStatusText(document)}", color = statusColor(document), fontWeight = FontWeight.Bold)
+        Text(text = "${document.type} - ${documentStatusText(document.daysLeft)}", color = statusColor(document), fontWeight = FontWeight.Bold)
         Text(text = "Data expirarii: ${formatDate(document.expiryDateMillis)}", color = MutedText)
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
