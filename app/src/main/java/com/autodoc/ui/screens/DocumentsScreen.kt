@@ -104,13 +104,6 @@ fun DocumentsScreen(
     ) {
         HeaderDocuments(stats = stats)
 
-        FilterButtons(
-            activeFilter = activeFilter.value,
-            onFilterChange = {
-                activeFilter.value = it
-            }
-        )
-
         NotifyNextButton(
             clientsToNotifyCount = stats.clientsToNotify,
             onClick = {
@@ -128,6 +121,14 @@ fun DocumentsScreen(
 
                     showNotificationToast(context, item.car, item.document)
                 }
+            }
+        )
+
+        FilterButtons(
+            activeFilter = activeFilter.value,
+            resultCount = filteredDocuments.size,
+            onFilterChange = {
+                activeFilter.value = it
             }
         )
 
@@ -205,61 +206,70 @@ private fun DocumentWithCar.canNotifyClient(): Boolean {
 
 @Composable
 private fun HeaderDocuments(stats: DocumentsStats) {
-    Column(
+    Card(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        colors = CardDefaults.cardColors(containerColor = AppColors.Navy),
+        border = BorderStroke(1.dp, AppColors.Border),
+        shape = RoundedCornerShape(24.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Card(
-                modifier = Modifier.height(48.dp),
-                colors = CardDefaults.cardColors(containerColor = AppColors.CardBg),
-                border = BorderStroke(1.dp, AppColors.Border),
-                shape = RoundedCornerShape(16.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                Card(
+                    modifier = Modifier.height(50.dp),
+                    colors = CardDefaults.cardColors(containerColor = AppColors.CardBg),
+                    border = BorderStroke(1.dp, AppColors.Gold),
+                    shape = RoundedCornerShape(18.dp)
                 ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 15.dp, vertical = 11.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "▤",
+                            color = AppColors.Gold,
+                            fontSize = 21.sp,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
+                }
+
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "▤",
+                        text = "Documente",
+                        color = Color.White,
+                        fontSize = 24.sp,
+                        lineHeight = 28.sp,
+                        fontWeight = FontWeight.Black,
+                        maxLines = 1
+                    )
+
+                    Text(
+                        text = "${stats.urgentDocuments} urgente • ${stats.expiredDocuments} expirate • ${stats.totalDocuments} total",
                         color = AppColors.Gold,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
+                        fontSize = 13.sp,
+                        lineHeight = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
                     )
                 }
             }
 
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Documente",
-                    color = Color.White,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Black,
-                    maxLines = 1
-                )
-
-                Text(
-                    text = "${stats.urgentDocuments} urgente din ${stats.totalDocuments} documente",
-                    color = AppColors.Gold,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1
-                )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                SummaryBox("Expirate", stats.expiredDocuments.toString(), AppColors.Danger, Modifier.weight(1f))
+                SummaryBox("Urgente", stats.urgentDocuments.toString(), AppColors.Danger, Modifier.weight(1f))
+                SummaryBox("Curand", stats.soonDocuments.toString(), AppColors.Warning, Modifier.weight(1f))
+                SummaryBox("Notif.", stats.clientsToNotify.toString(), AppColors.Gold, Modifier.weight(1f))
             }
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            SummaryBox("Exp", stats.expiredDocuments.toString(), AppColors.Danger, Modifier.weight(1f))
-            SummaryBox("Urg", stats.urgentDocuments.toString(), AppColors.Danger, Modifier.weight(1f))
-            SummaryBox("Cur", stats.soonDocuments.toString(), AppColors.Warning, Modifier.weight(1f))
-            SummaryBox("Notif", stats.clientsToNotify.toString(), AppColors.Gold, Modifier.weight(1f))
         }
     }
 }
@@ -283,7 +293,7 @@ private fun NotifyNextButton(
     ) {
         Text(
             text = if (clientsToNotifyCount > 0) {
-                "Notifica urmatorul ($clientsToNotifyCount ramasi)"
+                "Notifica urmatorul client ($clientsToNotifyCount ramasi)"
             } else {
                 "Nu exista clienti de notificat"
             },
@@ -312,14 +322,15 @@ private fun SummaryBox(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 4.dp, vertical = 6.dp),
+                .padding(horizontal = 4.dp, vertical = 7.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+            verticalArrangement = Arrangement.Center
         ) {
             Text(
                 text = value,
                 color = color,
                 fontSize = 20.sp,
+                lineHeight = 22.sp,
                 fontWeight = FontWeight.Black,
                 maxLines = 1,
                 textAlign = TextAlign.Center
@@ -329,6 +340,7 @@ private fun SummaryBox(
                 text = title,
                 color = AppColors.SoftText,
                 fontSize = 10.sp,
+                lineHeight = 12.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 softWrap = false,
@@ -341,15 +353,31 @@ private fun SummaryBox(
 @Composable
 private fun FilterButtons(
     activeFilter: DocumentFilter,
+    resultCount: Int,
     onFilterChange: (DocumentFilter) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            text = "Filtrare documente",
-            color = Color.White,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Black
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "Filtrare documente",
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Black,
+                modifier = Modifier.weight(1f)
+            )
+
+            Text(
+                text = "$resultCount rezultate",
+                color = AppColors.SoftText,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1
+            )
+        }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -445,7 +473,7 @@ private fun EmptyDocumentsCard() {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(100.dp),
+            .height(104.dp),
         colors = CardDefaults.cardColors(containerColor = AppColors.CardBg),
         border = BorderStroke(1.dp, AppColors.Border),
         shape = RoundedCornerShape(22.dp)
@@ -503,12 +531,12 @@ private fun DocumentItem(
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = AppColors.CardBg),
-        border = BorderStroke(1.dp, AppColors.Border),
+        border = BorderStroke(1.dp, color),
         shape = RoundedCornerShape(22.dp)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(9.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -519,8 +547,10 @@ private fun DocumentItem(
                     text = document.type,
                     color = Color.White,
                     fontSize = 20.sp,
+                    lineHeight = 24.sp,
                     fontWeight = FontWeight.Black,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1
                 )
 
                 StatusBadge(statusLabel, color)
@@ -534,46 +564,67 @@ private fun DocumentItem(
                 text = statusText(document),
                 color = color,
                 fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Text(
-                text = "${car.brand} ${car.model}",
-                color = Color.White,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Text(
-                text = car.plate,
-                color = AppColors.Gold,
-                fontSize = 17.sp,
+                lineHeight = 20.sp,
                 fontWeight = FontWeight.Black
             )
 
-            Text(
-                text = "Data expirarii: ${formatDate(document.expiryDateMillis)}",
-                color = AppColors.MutedText,
-                fontSize = 14.sp
-            )
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = AppColors.Navy),
+                border = BorderStroke(1.dp, AppColors.Border),
+                shape = RoundedCornerShape(17.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = "${car.brand} ${car.model}",
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        lineHeight = 20.sp,
+                        fontWeight = FontWeight.Black,
+                        maxLines = 1
+                    )
 
-            Text(
-                text = "Client: ${car.ownerName.ifBlank { "nespecificat" }}",
-                color = AppColors.MutedText,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
-            )
+                    Text(
+                        text = car.plate,
+                        color = AppColors.Gold,
+                        fontSize = 16.sp,
+                        lineHeight = 20.sp,
+                        fontWeight = FontWeight.Black,
+                        maxLines = 1
+                    )
 
-            Text(
-                text = when {
-                    hasPhone -> "Telefon: ${car.ownerPhone}"
-                    hasEmail -> "Email: ${car.ownerEmail}"
-                    else -> "Contact lipsa"
-                },
-                color = if (hasPhone || hasEmail) AppColors.MutedText else AppColors.Warning,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
-            )
+                    Text(
+                        text = "Expira la: ${formatDate(document.expiryDateMillis)}",
+                        color = AppColors.MutedText,
+                        fontSize = 13.sp,
+                        lineHeight = 17.sp
+                    )
+
+                    Text(
+                        text = "Client: ${car.ownerName.ifBlank { "nespecificat" }}",
+                        color = AppColors.MutedText,
+                        fontSize = 13.sp,
+                        lineHeight = 17.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+
+                    Text(
+                        text = when {
+                            hasPhone -> "Telefon: ${car.ownerPhone}"
+                            hasEmail -> "Email: ${car.ownerEmail}"
+                            else -> "Contact lipsa"
+                        },
+                        color = if (hasPhone || hasEmail) AppColors.MutedText else AppColors.Warning,
+                        fontSize = 13.sp,
+                        lineHeight = 17.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1
+                    )
+                }
+            }
 
             TextButton(
                 onClick = onNotified,
@@ -625,6 +676,7 @@ private fun StatusBadge(
             text = text,
             color = if (darkText) AppColors.Navy else Color.White,
             fontSize = 11.sp,
+            lineHeight = 13.sp,
             fontWeight = FontWeight.Black,
             modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
             maxLines = 1,

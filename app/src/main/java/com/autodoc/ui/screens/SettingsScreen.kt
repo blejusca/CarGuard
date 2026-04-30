@@ -28,7 +28,9 @@ import com.autodoc.ui.AppColors
 @Composable
 fun SettingsScreen(
     onExportBackup: () -> Unit,
-    onImportBackup: () -> Unit
+    onImportBackup: () -> Unit,
+    isProPlan: Boolean,
+    onToggleProPlanForTest: (Boolean) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -39,6 +41,11 @@ fun SettingsScreen(
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         SettingsHeaderCard()
+
+        PlanSettingsCard(
+            isProPlan = isProPlan,
+            onToggleProPlanForTest = onToggleProPlanForTest
+        )
 
         BackupSettingsCard(
             onExportBackup = onExportBackup,
@@ -69,11 +76,85 @@ private fun SettingsHeaderCard() {
             )
 
             Text(
-                text = "Backup, restaurare si informatii aplicatie",
+                text = "Plan aplicatie, backup automat, restaurare si informatii aplicatie",
                 color = AppColors.Gold,
                 fontSize = 18.sp,
                 lineHeight = 22.sp,
                 fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlanSettingsCard(
+    isProPlan: Boolean,
+    onToggleProPlanForTest: (Boolean) -> Unit
+) {
+    val planTitle = if (isProPlan) "Plan Pro" else "Plan Free"
+
+    val planDescription = if (isProPlan) {
+        "Ai acces la masini nelimitate. Acesta este un mod de test, fara plata reala."
+    } else {
+        "Planul Free permite maximum 3 masini. Pentru masini nelimitate, activeaza Pro."
+    }
+
+    val buttonText = if (isProPlan) "Revino la Free test" else "Activeaza Pro test"
+    val buttonColor = if (isProPlan) AppColors.Danger else AppColors.Gold
+    val buttonTextColor = if (isProPlan) Color.White else AppColors.Navy
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = AppColors.CardBg),
+        border = BorderStroke(1.dp, AppColors.Border),
+        shape = RoundedCornerShape(26.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "Plan aplicatie",
+                color = Color.White,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Black
+            )
+
+            Text(
+                text = planTitle,
+                color = AppColors.Gold,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Black
+            )
+
+            Text(
+                text = planDescription,
+                color = AppColors.MutedText,
+                fontSize = 15.sp,
+                lineHeight = 20.sp
+            )
+
+            Button(
+                onClick = { onToggleProPlanForTest(!isProPlan) },
+                colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp)
+            ) {
+                Text(
+                    text = buttonText,
+                    color = buttonTextColor,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 16.sp
+                )
+            }
+
+            Text(
+                text = "Nota: activarea Pro este temporara pentru test. Plata reala prin Google Billing se va implementa ulterior.",
+                color = AppColors.SoftText,
+                fontSize = 13.sp,
+                lineHeight = 18.sp
             )
         }
     }
@@ -102,7 +183,22 @@ private fun BackupSettingsCard(
             )
 
             Text(
-                text = "Exporta sau importa datele aplicatiei: masini, clienti si documente.",
+                text = "Backup automat activ: aplicatia salveaza periodic un backup JSON in spatiul intern al aplicatiei.",
+                color = AppColors.Gold,
+                fontSize = 15.sp,
+                lineHeight = 20.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            Text(
+                text = "Backup-ul automat nu suprascrie backup-ul manual salvat in Downloads.",
+                color = AppColors.SoftText,
+                fontSize = 14.sp,
+                lineHeight = 19.sp
+            )
+
+            Text(
+                text = "Exporta sau importa manual datele aplicatiei: masini, clienti si documente.",
                 color = AppColors.MutedText,
                 fontSize = 16.sp,
                 lineHeight = 21.sp
@@ -117,7 +213,7 @@ private fun BackupSettingsCard(
                     .height(54.dp)
             ) {
                 Text(
-                    text = "Export backup",
+                    text = "Export backup manual",
                     color = AppColors.Navy,
                     fontWeight = FontWeight.Black,
                     fontSize = 16.sp
@@ -192,7 +288,7 @@ private fun AppInfoCard() {
             )
 
             Text(
-                text = "• evidenta masini si clienti\n• documente auto: ITP, RCA, CASCO, Rovinieta, Revizie\n• notificari pentru documente expirate sau aproape de expirare\n• notificare client prin WhatsApp sau email\n• export raport PDF pentru masina\n• backup si restaurare date",
+                text = "• evidenta masini si clienti\n• documente auto: ITP, RCA, CASCO, Rovinieta, Revizie\n• notificari pentru documente expirate sau aproape de expirare\n• notificare client prin WhatsApp sau email\n• export raport PDF pentru masina\n• backup manual si backup automat\n• restaurare date din fisier backup",
                 color = AppColors.SoftText,
                 fontSize = 14.sp,
                 lineHeight = 20.sp

@@ -143,7 +143,39 @@ fun DashboardScreen(
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Header(carsCount = cars.size)
+        Header(
+            carsCount = cars.size,
+            documentsCount = stats.totalDocuments
+        )
+
+        PrimaryActionButton(
+            expanded = showAddCar.value,
+            onClick = { showAddCar.value = !showAddCar.value }
+        )
+
+        if (showAddCar.value) {
+            AddCarForm(
+                onAddCar = { brand, model, plate, year, engine, ownerName, ownerPhone, ownerEmail, ownerNotes ->
+                    onAddCar(
+                        brand,
+                        model,
+                        plate,
+                        year,
+                        engine,
+                        ownerName,
+                        ownerPhone,
+                        ownerEmail,
+                        ownerNotes
+                    )
+                    searchInput.value = ""
+                    activeSearch.value = ""
+                    activeFilter.value = DashboardFilter.ALL
+                    activeSort.value = DashboardSort.URGENTE
+                    showAddCar.value = false
+                    focusManager.clearFocus()
+                }
+            )
+        }
 
         SearchBar(
             value = searchInput.value,
@@ -172,50 +204,9 @@ fun DashboardScreen(
 
         SortButtons(
             activeSort = activeSort.value,
+            resultCount = filteredCars.value.size,
             onSortChange = { selectedSort -> activeSort.value = selectedSort }
         )
-
-        Button(
-            onClick = { showAddCar.value = !showAddCar.value },
-            colors = ButtonDefaults.buttonColors(containerColor = AppColors.Gold),
-            shape = RoundedCornerShape(18.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp)
-        ) {
-            Text(
-                text = if (showAddCar.value) "Inchide formular" else "+ Adauga masina",
-                color = AppColors.Navy,
-                fontWeight = FontWeight.Black,
-                fontSize = 16.sp,
-                maxLines = 1,
-                softWrap = false
-            )
-        }
-
-        if (showAddCar.value) {
-            AddCarForm(
-                onAddCar = { brand, model, plate, year, engine, ownerName, ownerPhone, ownerEmail, ownerNotes ->
-                    onAddCar(
-                        brand,
-                        model,
-                        plate,
-                        year,
-                        engine,
-                        ownerName,
-                        ownerPhone,
-                        ownerEmail,
-                        ownerNotes
-                    )
-                    searchInput.value = ""
-                    activeSearch.value = ""
-                    activeFilter.value = DashboardFilter.ALL
-                    activeSort.value = DashboardSort.URGENTE
-                    showAddCar.value = false
-                    focusManager.clearFocus()
-                }
-            )
-        }
 
         if (filteredCars.value.isEmpty()) {
             EmptyCarsCard()
@@ -309,48 +300,99 @@ private fun List<DocumentUi>.urgencyDaysLeft(): Int {
 }
 
 @Composable
-private fun Header(carsCount: Int) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 4.dp, bottom = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+private fun Header(
+    carsCount: Int,
+    documentsCount: Int
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = AppColors.Navy),
+        border = BorderStroke(1.dp, AppColors.Border),
+        shape = RoundedCornerShape(24.dp)
     ) {
-        Card(
-            modifier = Modifier.height(48.dp),
-            colors = CardDefaults.cardColors(containerColor = AppColors.CardBg),
-            border = BorderStroke(1.dp, AppColors.Border),
-            shape = RoundedCornerShape(16.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
+            Card(
+                modifier = Modifier.size(50.dp),
+                colors = CardDefaults.cardColors(containerColor = AppColors.CardBg),
+                border = BorderStroke(1.dp, AppColors.Gold),
+                shape = RoundedCornerShape(18.dp)
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "◆",
+                        color = AppColors.Gold,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Black
+                    )
+                }
+            }
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
             ) {
                 Text(
-                    text = "◆",
+                    text = "CarGuard Business",
+                    color = Color.White,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 22.sp,
+                    maxLines = 1
+                )
+
+                Text(
+                    text = "$carsCount masini • $documentsCount documente",
                     color = AppColors.Gold,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
+                    fontSize = 13.sp,
+                    lineHeight = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
+                )
+
+                Text(
+                    text = "Monitorizare documente, clienti si expirari auto",
+                    color = AppColors.SoftText,
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
+                    maxLines = 1
                 )
             }
         }
+    }
+}
 
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = "CarGuard Business",
-                color = Color.White,
-                fontWeight = FontWeight.Black,
-                fontSize = 22.sp,
-                maxLines = 1
-            )
-            Text(
-                text = "$carsCount masini active",
-                color = AppColors.Gold,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-        }
+@Composable
+private fun PrimaryActionButton(
+    expanded: Boolean,
+    onClick: () -> Unit
+) {
+    Button(
+        onClick = onClick,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (expanded) AppColors.CardBg else AppColors.Gold
+        ),
+        border = if (expanded) BorderStroke(1.dp, AppColors.Border) else null,
+        shape = RoundedCornerShape(18.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(50.dp)
+    ) {
+        Text(
+            text = if (expanded) "Inchide formularul" else "+ Adauga masina",
+            color = if (expanded) AppColors.Gold else AppColors.Navy,
+            fontWeight = FontWeight.Black,
+            fontSize = 16.sp,
+            maxLines = 1,
+            softWrap = false
+        )
     }
 }
 
@@ -361,96 +403,106 @@ private fun SearchBar(
     onSearch: () -> Unit,
     onReset: () -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        BasicTextField(
-            value = value,
-            onValueChange = onChange,
-            singleLine = true,
-            textStyle = TextStyle(
-                color = Color.White,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium
-            ),
-            keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { onSearch() }),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-                .clip(RoundedCornerShape(28.dp))
-                .background(AppColors.FieldBg)
-                .border(BorderStroke(1.dp, Color.Transparent), RoundedCornerShape(28.dp)),
-            decorationBox = { innerTextField ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 18.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Search,
-                        contentDescription = null,
-                        tint = AppColors.Gold,
-                        modifier = Modifier.size(22.dp)
-                    )
-
-                    Box(
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = AppColors.CardBg),
+        border = BorderStroke(1.dp, AppColors.Border),
+        shape = RoundedCornerShape(22.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            BasicTextField(
+                value = value,
+                onValueChange = onChange,
+                singleLine = true,
+                textStyle = TextStyle(
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium
+                ),
+                keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { onSearch() }),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(AppColors.FieldBg)
+                    .border(BorderStroke(1.dp, Color.Transparent), RoundedCornerShape(18.dp)),
+                decorationBox = { innerTextField ->
+                    Row(
                         modifier = Modifier
-                            .weight(1f)
-                            .padding(end = 4.dp),
-                        contentAlignment = Alignment.CenterStart
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        if (value.isBlank()) {
-                            Text(
-                                text = "Cauta masina sau client",
-                                color = AppColors.SoftText,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Medium,
-                                maxLines = 1,
-                                softWrap = false
-                            )
+                        Icon(
+                            imageVector = Icons.Outlined.Search,
+                            contentDescription = null,
+                            tint = AppColors.Gold,
+                            modifier = Modifier.size(21.dp)
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(end = 4.dp),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            if (value.isBlank()) {
+                                Text(
+                                    text = "Cauta dupa masina, numar sau client",
+                                    color = AppColors.SoftText,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            }
+                            innerTextField()
                         }
-                        innerTextField()
                     }
                 }
-            }
-        )
+            )
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Button(
-                onClick = onSearch,
-                colors = ButtonDefaults.buttonColors(containerColor = AppColors.Gold),
-                shape = RoundedCornerShape(15.dp),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(44.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = "Cauta",
-                    color = AppColors.Navy,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 15.sp
-                )
-            }
+                Button(
+                    onClick = onSearch,
+                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.Gold),
+                    shape = RoundedCornerShape(15.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(42.dp)
+                ) {
+                    Text(
+                        text = "Cauta",
+                        color = AppColors.Navy,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 14.sp
+                    )
+                }
 
-            Button(
-                onClick = onReset,
-                colors = ButtonDefaults.buttonColors(containerColor = AppColors.CardBg),
-                shape = RoundedCornerShape(15.dp),
-                border = BorderStroke(1.dp, AppColors.Border),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(44.dp)
-            ) {
-                Text(
-                    text = "Reseteaza",
-                    color = AppColors.Gold,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp
-                )
+                Button(
+                    onClick = onReset,
+                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.Navy),
+                    shape = RoundedCornerShape(15.dp),
+                    border = BorderStroke(1.dp, AppColors.Border),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(42.dp)
+                ) {
+                    Text(
+                        text = "Reseteaza",
+                        color = AppColors.Gold,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                }
             }
         }
     }
@@ -465,46 +517,55 @@ private fun SummaryCards(
     activeFilter: DashboardFilter,
     onFilterChange: (DashboardFilter) -> Unit
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        SummaryCard(
-            title = "Exp",
-            value = expiredCount.toString(),
-            color = AppColors.Danger,
-            selected = activeFilter == DashboardFilter.EXPIRED,
-            modifier = Modifier
-                .weight(1f)
-                .clickable { onFilterChange(DashboardFilter.EXPIRED) }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = "Status documente",
+            color = Color.White,
+            fontWeight = FontWeight.Black,
+            fontSize = 18.sp
         )
-        SummaryCard(
-            title = "Cur",
-            value = soonCount.toString(),
-            color = AppColors.Warning,
-            selected = activeFilter == DashboardFilter.SOON,
-            modifier = Modifier
-                .weight(1f)
-                .clickable { onFilterChange(DashboardFilter.SOON) }
-        )
-        SummaryCard(
-            title = "OK",
-            value = okCount.toString(),
-            color = AppColors.Ok,
-            selected = activeFilter == DashboardFilter.OK,
-            modifier = Modifier
-                .weight(1f)
-                .clickable { onFilterChange(DashboardFilter.OK) }
-        )
-        SummaryCard(
-            title = "Toate",
-            value = totalDocuments.toString(),
-            color = AppColors.Gold,
-            selected = activeFilter == DashboardFilter.ALL,
-            modifier = Modifier
-                .weight(1f)
-                .clickable { onFilterChange(DashboardFilter.ALL) }
-        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            SummaryCard(
+                title = "Expirate",
+                value = expiredCount.toString(),
+                color = AppColors.Danger,
+                selected = activeFilter == DashboardFilter.EXPIRED,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { onFilterChange(DashboardFilter.EXPIRED) }
+            )
+            SummaryCard(
+                title = "Curand",
+                value = soonCount.toString(),
+                color = AppColors.Warning,
+                selected = activeFilter == DashboardFilter.SOON,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { onFilterChange(DashboardFilter.SOON) }
+            )
+            SummaryCard(
+                title = "OK",
+                value = okCount.toString(),
+                color = AppColors.Ok,
+                selected = activeFilter == DashboardFilter.OK,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { onFilterChange(DashboardFilter.OK) }
+            )
+            SummaryCard(
+                title = "Total",
+                value = totalDocuments.toString(),
+                color = AppColors.Gold,
+                selected = activeFilter == DashboardFilter.ALL,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { onFilterChange(DashboardFilter.ALL) }
+            )
+        }
     }
 }
 
@@ -517,7 +578,7 @@ private fun SummaryCard(
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.height(64.dp),
+        modifier = modifier.height(68.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (selected) AppColors.Navy else AppColors.CardBg
         ),
@@ -525,21 +586,21 @@ private fun SummaryCard(
             width = 1.dp,
             color = if (selected) AppColors.Gold else AppColors.Border
         ),
-        shape = RoundedCornerShape(16.dp)
+        shape = RoundedCornerShape(18.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 6.dp, vertical = 10.dp),
+                .padding(horizontal = 6.dp, vertical = 9.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Text(
                 text = value,
                 color = color,
-                fontSize = 18.sp,
-                lineHeight = 20.sp,
-                fontWeight = FontWeight.Bold,
+                fontSize = 19.sp,
+                lineHeight = 21.sp,
+                fontWeight = FontWeight.Black,
                 maxLines = 1
             )
 
@@ -548,7 +609,7 @@ private fun SummaryCard(
                 color = AppColors.SoftText,
                 fontSize = 11.sp,
                 lineHeight = 13.sp,
-                fontWeight = FontWeight.Medium,
+                fontWeight = FontWeight.Bold,
                 maxLines = 1
             )
         }
@@ -558,15 +619,31 @@ private fun SummaryCard(
 @Composable
 private fun SortButtons(
     activeSort: DashboardSort,
+    resultCount: Int,
     onSortChange: (DashboardSort) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            text = "Sortare masini",
-            color = Color.White,
-            fontWeight = FontWeight.Black,
-            fontSize = 18.sp
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "Masini",
+                color = Color.White,
+                fontWeight = FontWeight.Black,
+                fontSize = 18.sp,
+                modifier = Modifier.weight(1f)
+            )
+
+            Text(
+                text = "$resultCount rezultate",
+                color = AppColors.SoftText,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp,
+                maxLines = 1
+            )
+        }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -589,7 +666,7 @@ private fun SortButtons(
             }
 
             SortButton(
-                text = "Nr. doc",
+                text = "Documente",
                 selected = activeSort == DashboardSort.DOCUMENTE,
                 modifier = Modifier.weight(1f)
             ) {
@@ -619,7 +696,7 @@ private fun SortButton(
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 10.dp),
+                .padding(horizontal = 8.dp),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -640,7 +717,7 @@ private fun EmptyCarsCard() {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(92.dp),
+            .height(104.dp),
         colors = CardDefaults.cardColors(containerColor = AppColors.CardBg),
         border = BorderStroke(1.dp, AppColors.Border),
         shape = RoundedCornerShape(22.dp)
@@ -658,13 +735,26 @@ private fun EmptyCarsCard() {
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold
             )
-            Text(
-                text = "Nu exista masini pentru filtrul selectat.",
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp,
-                lineHeight = 20.sp
-            )
+
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = "Nu exista masini pentru filtrul selectat.",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    lineHeight = 20.sp
+                )
+
+                Text(
+                    text = "Reseteaza cautarea sau adauga o masina noua.",
+                    color = AppColors.SoftText,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 13.sp,
+                    lineHeight = 17.sp
+                )
+            }
         }
     }
 }

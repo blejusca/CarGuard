@@ -2,6 +2,7 @@ package com.autodoc.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.autodoc.data.AppPlanManager
 import com.autodoc.data.dao.CarDao
 import com.autodoc.data.dao.DocumentDao
 import com.autodoc.data.entity.CarEntity
@@ -10,8 +11,10 @@ import com.autodoc.domain.mapper.toUi
 import com.autodoc.notification.AutoDocNotificationScheduler
 import com.autodoc.ui.CarUi
 import com.autodoc.ui.normalizeDocumentType
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -19,8 +22,19 @@ import kotlinx.coroutines.launch
 class AutoDocViewModel(
     private val carDao: CarDao,
     private val documentDao: DocumentDao,
-    private val scheduler: AutoDocNotificationScheduler
+    private val scheduler: AutoDocNotificationScheduler,
+    private val appPlanManager: AppPlanManager
 ) : ViewModel() {
+
+    companion object {
+        private const val FREE_PLAN_MAX_CARS = 3
+    }
+
+    private val _isProPlan = MutableStateFlow(appPlanManager.isProPlan())
+    val isProPlan: StateFlow<Boolean> = _isProPlan.asStateFlow()
+
+    private val _userMessage = MutableStateFlow<String?>(null)
+    val userMessage: StateFlow<String?> = _userMessage.asStateFlow()
 
     val cars: StateFlow<List<CarUi>> = combine(
         carDao.observeCars(),
@@ -34,6 +48,21 @@ class AutoDocViewModel(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = emptyList()
     )
+
+    fun setProPlanForTest(enabled: Boolean) {
+        appPlanManager.setProPlan(enabled)
+        _isProPlan.value = enabled
+
+        _userMessage.value = if (enabled) {
+            "Plan Pro activat pentru test. Limita de masini este dezactivata."
+        } else {
+            "Plan Free activ. Poti adauga maximum $FREE_PLAN_MAX_CARS masini."
+        }
+    }
+
+    fun clearUserMessage() {
+        _userMessage.value = null
+    }
 
     fun addCar(
         brand: String,
@@ -61,6 +90,14 @@ class AutoDocViewModel(
         }
 
         viewModelScope.launch {
+            val currentCarsCount = cars.value.size
+
+            if (!_isProPlan.value && currentCarsCount >= FREE_PLAN_MAX_CARS) {
+                _userMessage.value =
+                    "Ai atins limita planului Free: maximum $FREE_PLAN_MAX_CARS masini. Activeaza Pro pentru masini nelimitate."
+                return@launch
+            }
+
             carDao.insert(
                 CarEntity(
                     brand = cleanBrand,

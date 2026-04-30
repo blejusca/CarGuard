@@ -1,13 +1,17 @@
 package com.autodoc.ui.screens
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -25,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
@@ -92,55 +97,16 @@ fun PremiumCarCard(
         shape = RoundedCornerShape(24.dp)
     ) {
         Column(
-            modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = "${car.brand} ${car.model}",
-                color = Color.White,
-                fontSize = 23.sp,
-                fontWeight = FontWeight.Black
-            )
-
-            Text(
-                text = car.plate,
-                color = AppColors.MutedText,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Text(
-                text = "${car.year} • ${car.engine.ifBlank { "Motorizare nespecificata" }}",
-                color = AppColors.SoftText,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
+            CarHeader(
+                car = car,
+                mostUrgent = mostUrgent
             )
 
             if (hasOwnerInfo(car)) {
-                Divider(color = AppColors.Border)
-
-                Text(
-                    text = "Client: ${car.ownerName.ifBlank { "Nespecificat" }}",
-                    color = Color.White,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                if (car.ownerPhone.isNotBlank()) {
-                    Text(
-                        text = "Telefon: ${car.ownerPhone}",
-                        color = AppColors.MutedText,
-                        fontSize = 14.sp
-                    )
-                }
-
-                if (car.ownerEmail.isNotBlank()) {
-                    Text(
-                        text = "Email: ${car.ownerEmail}",
-                        color = AppColors.MutedText,
-                        fontSize = 14.sp
-                    )
-                }
+                ClientCompactInfo(car = car)
             }
 
             DocumentSummary(
@@ -150,12 +116,14 @@ fun PremiumCarCard(
 
             CarActionButtons(
                 isEditing = showEditCar.value,
+                expanded = expanded,
                 onToggleEdit = {
                     showEditCar.value = !showEditCar.value
                 },
                 onExportPdf = {
                     onExportCarPdf(car)
-                }
+                },
+                onToggleDocuments = onToggle
             )
 
             if (showEditCar.value) {
@@ -182,19 +150,6 @@ fun PremiumCarCard(
                 )
             }
 
-            Button(
-                onClick = onToggle,
-                colors = ButtonDefaults.buttonColors(containerColor = AppColors.Navy),
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = if (expanded) "Ascunde documente" else "Arata documente",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
             if (expanded) {
                 ExpandedCarContent(
                     car = car,
@@ -211,76 +166,214 @@ fun PremiumCarCard(
 }
 
 @Composable
+private fun CarHeader(
+    car: CarUi,
+    mostUrgent: DocumentUi?
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Card(
+            modifier = Modifier.size(50.dp),
+            colors = CardDefaults.cardColors(containerColor = AppColors.Navy),
+            border = BorderStroke(1.dp, statusColorOrGold(mostUrgent)),
+            shape = RoundedCornerShape(18.dp)
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = car.brand.firstOrNull()?.uppercase() ?: "A",
+                    color = statusColorOrGold(mostUrgent),
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Black
+                )
+            }
+        }
+
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            Text(
+                text = "${car.brand} ${car.model}",
+                color = Color.White,
+                fontSize = 21.sp,
+                lineHeight = 24.sp,
+                fontWeight = FontWeight.Black,
+                maxLines = 1
+            )
+
+            Text(
+                text = car.plate,
+                color = AppColors.Gold,
+                fontSize = 17.sp,
+                lineHeight = 20.sp,
+                fontWeight = FontWeight.Black,
+                maxLines = 1
+            )
+
+            Text(
+                text = "${car.year} • ${car.engine.ifBlank { "Motorizare nespecificata" }}",
+                color = AppColors.SoftText,
+                fontSize = 13.sp,
+                lineHeight = 17.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1
+            )
+        }
+    }
+}
+
+@Composable
+private fun ClientCompactInfo(car: CarUi) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = AppColors.Navy),
+        border = BorderStroke(1.dp, AppColors.Border),
+        shape = RoundedCornerShape(18.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = "Client: ${car.ownerName.ifBlank { "Nespecificat" }}",
+                color = Color.White,
+                fontSize = 14.sp,
+                lineHeight = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            if (car.ownerPhone.isNotBlank()) {
+                Text(
+                    text = "Telefon: ${car.ownerPhone}",
+                    color = AppColors.MutedText,
+                    fontSize = 13.sp,
+                    lineHeight = 17.sp
+                )
+            }
+
+            if (car.ownerEmail.isNotBlank()) {
+                Text(
+                    text = "Email: ${car.ownerEmail}",
+                    color = AppColors.MutedText,
+                    fontSize = 13.sp,
+                    lineHeight = 17.sp,
+                    maxLines = 1
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun DocumentSummary(
     documentsCount: Int,
     mostUrgent: DocumentUi?
 ) {
-    Column(
+    Card(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(3.dp)
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+        border = BorderStroke(1.dp, AppColors.Border),
+        shape = RoundedCornerShape(18.dp)
     ) {
-        Text(
-            text = "$documentsCount ${if (documentsCount == 1) "document" else "documente"}",
-            color = AppColors.Gold,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Bold
-        )
+        Column(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = "$documentsCount ${if (documentsCount == 1) "document" else "documente"}",
+                color = AppColors.Gold,
+                fontSize = 14.sp,
+                lineHeight = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
 
-        Text(
-            text = mostUrgent?.let {
-                "${it.type}: ${documentStatusText(it.daysLeft)}"
-            } ?: "Fara documente",
-            color = mostUrgent?.let { statusColor(it) } ?: AppColors.MutedText,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Bold,
-            lineHeight = 19.sp
-        )
+            Text(
+                text = mostUrgent?.let {
+                    "${it.type}: ${documentStatusText(it.daysLeft)}"
+                } ?: "Fara documente adaugate",
+                color = mostUrgent?.let { statusColor(it) } ?: AppColors.MutedText,
+                fontSize = 15.sp,
+                lineHeight = 19.sp,
+                fontWeight = FontWeight.Black
+            )
+        }
     }
 }
 
 @Composable
 private fun CarActionButtons(
     isEditing: Boolean,
+    expanded: Boolean,
     onToggleEdit: () -> Unit,
-    onExportPdf: () -> Unit
+    onExportPdf: () -> Unit,
+    onToggleDocuments: () -> Unit
 ) {
-    Row(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Button(
-            onClick = onToggleEdit,
-            colors = ButtonDefaults.buttonColors(containerColor = AppColors.Gold),
-            shape = RoundedCornerShape(14.dp),
-            modifier = Modifier
-                .weight(1f)
-                .height(44.dp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                text = if (isEditing) "Inchide" else "Editeaza",
-                color = AppColors.Navy,
-                fontWeight = FontWeight.Black,
-                fontSize = 14.sp,
-                maxLines = 1,
-                softWrap = false
-            )
+            Button(
+                onClick = onToggleEdit,
+                colors = ButtonDefaults.buttonColors(containerColor = AppColors.Gold),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(44.dp)
+            ) {
+                Text(
+                    text = if (isEditing) "Inchide" else "Editeaza",
+                    color = AppColors.Navy,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    softWrap = false
+                )
+            }
+
+            Button(
+                onClick = onExportPdf,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1D4ED8)),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(44.dp)
+            ) {
+                Text(
+                    text = "Export PDF",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    softWrap = false
+                )
+            }
         }
 
         Button(
-            onClick = onExportPdf,
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1D4ED8)),
+            onClick = onToggleDocuments,
+            colors = ButtonDefaults.buttonColors(containerColor = AppColors.Navy),
+            border = BorderStroke(1.dp, AppColors.Border),
             shape = RoundedCornerShape(14.dp),
             modifier = Modifier
-                .weight(1f)
+                .fillMaxWidth()
                 .height(44.dp)
         ) {
             Text(
-                text = "Export PDF",
+                text = if (expanded) "Ascunde documente" else "Arata documente",
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp,
-                maxLines = 1,
-                softWrap = false
+                maxLines = 1
             )
         }
     }
@@ -302,25 +395,48 @@ private fun ExpandedCarContent(
     Divider(color = AppColors.Border)
 
     if (car.ownerNotes.isNotBlank()) {
-        Text(
-            text = "Observatii client:",
-            color = AppColors.Gold,
-            fontWeight = FontWeight.Bold
-        )
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = AppColors.Navy),
+            border = BorderStroke(1.dp, AppColors.Border),
+            shape = RoundedCornerShape(18.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = "Observatii client",
+                    color = AppColors.Gold,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Black
+                )
 
-        Text(
-            text = car.ownerNotes,
-            color = AppColors.MutedText
-        )
-
-        Divider(color = AppColors.Border)
+                Text(
+                    text = car.ownerNotes,
+                    color = AppColors.MutedText,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp
+                )
+            }
+        }
     }
 
     if (car.documents.isEmpty()) {
-        Text(
-            text = "Nu exista documente adaugate.",
-            color = Color.White
-        )
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = AppColors.Navy),
+            border = BorderStroke(1.dp, AppColors.Border),
+            shape = RoundedCornerShape(18.dp)
+        ) {
+            Text(
+                text = "Nu exista documente adaugate.",
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(14.dp)
+            )
+        }
     } else {
         car.documents.forEach { document ->
             DocumentRow(
@@ -344,7 +460,9 @@ private fun ExpandedCarContent(
         onClick = onRequestDeleteCar,
         colors = ButtonDefaults.buttonColors(containerColor = AppColors.Danger),
         shape = RoundedCornerShape(14.dp),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(46.dp)
     ) {
         Text(
             text = "Sterge masina",
@@ -457,7 +575,9 @@ private fun EditCarForm(
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = AppColors.Ok),
                 shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.weight(1f)
+                modifier = Modifier
+                    .weight(1f)
+                    .height(46.dp)
             ) {
                 Text(
                     text = "Salveaza",
@@ -471,7 +591,9 @@ private fun EditCarForm(
                 colors = ButtonDefaults.buttonColors(containerColor = AppColors.CardBg),
                 shape = RoundedCornerShape(16.dp),
                 border = BorderStroke(1.dp, AppColors.Border),
-                modifier = Modifier.weight(1f)
+                modifier = Modifier
+                    .weight(1f)
+                    .height(46.dp)
             ) {
                 Text(
                     text = "Anuleaza",
@@ -536,7 +658,7 @@ private fun PremiumLightCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 1.dp),
-        colors = CardDefaults.cardColors(containerColor = AppColors.CardBg),
+        colors = CardDefaults.cardColors(containerColor = AppColors.Navy),
         border = BorderStroke(1.dp, AppColors.Border),
         shape = RoundedCornerShape(22.dp)
     ) {
@@ -595,6 +717,10 @@ private fun hasOwnerInfo(car: CarUi): Boolean {
     return car.ownerName.isNotBlank() ||
             car.ownerPhone.isNotBlank() ||
             car.ownerEmail.isNotBlank()
+}
+
+private fun statusColorOrGold(document: DocumentUi?): Color {
+    return document?.let { statusColor(it) } ?: AppColors.Gold
 }
 
 private fun statusColor(document: DocumentUi): Color {

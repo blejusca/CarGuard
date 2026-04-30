@@ -26,6 +26,7 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,9 +40,11 @@ import androidx.lifecycle.lifecycleScope
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import com.autodoc.data.AppPlanManager
 import com.autodoc.data.BackupManager
 import com.autodoc.data.DatabaseProvider
 import com.autodoc.data.PdfExportManager
+import com.autodoc.notification.AutoBackupWorker
 import com.autodoc.notification.AutoDocNotificationScheduler
 import com.autodoc.notification.DailyCheckWorker
 import com.autodoc.ui.AppColors
@@ -87,21 +90,24 @@ class MainActivity : ComponentActivity() {
 
         currentScreen = savedInstanceState
             ?.getString(KEY_CURRENT_SCREEN)
-            ?.let { screenName ->
-                runCatching { AppScreen.valueOf(screenName) }.getOrNull()
+            ?.let { savedScreen ->
+                runCatching { AppScreen.valueOf(savedScreen) }.getOrNull()
             }
             ?: AppScreen.DASHBOARD
 
         requestNotificationPermissionIfNeeded()
         scheduleDailyDocumentCheck()
+        scheduleAutoBackup()
 
         val database = DatabaseProvider.getDatabase(this)
         val scheduler = AutoDocNotificationScheduler(this)
+        val appPlanManager = AppPlanManager(this)
 
         val factory = AutoDocViewModelFactory(
             carDao = database.carDao(),
             documentDao = database.documentDao(),
-            scheduler = scheduler
+            scheduler = scheduler,
+            appPlanManager = appPlanManager
         )
 
         viewModel = ViewModelProvider(
@@ -112,6 +118,20 @@ class MainActivity : ComponentActivity() {
         setContent {
             AutoDocTheme(dynamicColor = false) {
                 val cars by viewModel.cars.collectAsState()
+                val isProPlan by viewModel.isProPlan.collectAsState()
+                val userMessage by viewModel.userMessage.collectAsState()
+
+                LaunchedEffect(userMessage) {
+                    val message = userMessage
+                    if (!message.isNullOrBlank()) {
+                        Toast.makeText(
+                            this@MainActivity,
+                            message,
+                            Toast.LENGTH_LONG
+                        ).show()
+                        viewModel.clearUserMessage()
+                    }
+                }
 
                 if (showImportConfirmDialog) {
                     ConfirmImportBackupDialog(
@@ -227,6 +247,10 @@ class MainActivity : ComponentActivity() {
                                                 "application/octet-stream"
                                             )
                                         )
+                                    },
+                                    isProPlan = isProPlan,
+                                    onToggleProPlanForTest = { enabled ->
+                                        viewModel.setProPlanForTest(enabled)
                                     }
                                 )
                             }
@@ -355,6 +379,19 @@ class MainActivity : ComponentActivity() {
 
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             "daily_document_check",
+            ExistingPeriodicWorkPolicy.UPDATE,
+            request
+        )
+    }
+
+    private fun scheduleAutoBackup() {
+        val request = PeriodicWorkRequestBuilder<AutoBackupWorker>(
+            1,
+            TimeUnit.DAYS
+        ).build()
+
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "auto_backup",
             ExistingPeriodicWorkPolicy.UPDATE,
             request
         )
