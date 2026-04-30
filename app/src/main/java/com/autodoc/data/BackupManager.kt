@@ -8,6 +8,7 @@ import android.os.Environment
 import android.provider.MediaStore
 import com.autodoc.data.entity.CarEntity
 import com.autodoc.data.entity.DocumentEntity
+import com.autodoc.notification.AutoDocNotificationScheduler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -93,7 +94,8 @@ object BackupManager {
 
     suspend fun importBackupFromUri(
         context: Context,
-        uri: Uri
+        uri: Uri,
+        scheduler: AutoDocNotificationScheduler
     ): Boolean {
         return withContext(Dispatchers.IO) {
             try {
@@ -117,28 +119,30 @@ object BackupManager {
                 db.carDao().deleteAll()
 
                 val carIdMap = mutableMapOf<Int, Long>()
+                val importedCarsByNewId = mutableMapOf<Int, CarEntity>()
 
                 for (i in 0 until carsArray.length()) {
                     val obj = carsArray.getJSONObject(i)
 
                     val oldId = obj.optInt("id", 0)
 
-                    val newId = db.carDao().insert(
-                        CarEntity(
-                            id = 0,
-                            brand = obj.optString("brand", ""),
-                            model = obj.optString("model", ""),
-                            plate = obj.optString("plate", ""),
-                            year = obj.optInt("year", 0),
-                            engine = obj.optString("engine", ""),
-                            ownerName = obj.optString("ownerName", ""),
-                            ownerPhone = obj.optString("ownerPhone", ""),
-                            ownerEmail = obj.optString("ownerEmail", ""),
-                            ownerNotes = obj.optString("ownerNotes", "")
-                        )
+                    val carToInsert = CarEntity(
+                        id = 0,
+                        brand = obj.optString("brand", ""),
+                        model = obj.optString("model", ""),
+                        plate = obj.optString("plate", ""),
+                        year = obj.optInt("year", 0),
+                        engine = obj.optString("engine", ""),
+                        ownerName = obj.optString("ownerName", ""),
+                        ownerPhone = obj.optString("ownerPhone", ""),
+                        ownerEmail = obj.optString("ownerEmail", ""),
+                        ownerNotes = obj.optString("ownerNotes", "")
                     )
 
+                    val newId = db.carDao().insert(carToInsert)
+
                     carIdMap[oldId] = newId
+                    importedCarsByNewId[newId.toInt()] = carToInsert.copy(id = newId.toInt())
                 }
 
                 for (i in 0 until documentsArray.length()) {
@@ -147,18 +151,33 @@ object BackupManager {
                     val oldCarId = obj.optInt("carId", 0)
                     val newCarId = carIdMap[oldCarId]?.toInt() ?: continue
 
-                    db.documentDao().insert(
-                        DocumentEntity(
-                            id = 0,
-                            carId = newCarId,
-                            type = obj.optString("type", ""),
-                            expiryDate = obj.optLong("expiryDate", 0L),
-                            reminderDaysBefore = obj.optInt("reminderDaysBefore", 7),
-                            notifiedExpired = obj.optBoolean("notifiedExpired", false),
-                            notifiedToday = obj.optBoolean("notifiedToday", false),
-                            notifiedTomorrow = obj.optBoolean("notifiedTomorrow", false),
-                            notifiedReminder = obj.optBoolean("notifiedReminder", false)
-                        )
+                    val documentToInsert = DocumentEntity(
+                        id = 0,
+                        carId = newCarId,
+                        type = obj.optString("type", ""),
+                        expiryDate = obj.optLong("expiryDate", 0L),
+                        reminderDaysBefore = obj.optInt("reminderDaysBefore", 7),
+                        notifiedExpired = obj.optBoolean("notifiedExpired", false),
+                        notifiedToday = obj.optBoolean("notifiedToday", false),
+                        notifiedTomorrow = obj.optBoolean("notifiedTomorrow", false),
+                        notifiedReminder = obj.optBoolean("notifiedReminder", false)
+                    )
+
+                    val newDocumentId = db.documentDao().insert(documentToInsert).toInt()
+
+                    val importedCar = importedCarsByNewId[newCarId]
+                    val carName = if (importedCar != null) {
+                        "${importedCar.brand} ${importedCar.model} - ${importedCar.plate}"
+                    } else {
+                        "Masina necunoscuta"
+                    }
+
+                    scheduler.schedule(
+                        documentId = newDocumentId,
+                        type = documentToInsert.type,
+                        carName = carName,
+                        expiry = documentToInsert.expiryDate,
+                        daysBefore = documentToInsert.reminderDaysBefore
                     )
                 }
 
@@ -175,6 +194,9 @@ object BackupManager {
         documents: List<DocumentEntity>
     ): String {
         val root = JSONObject()
+
+        root.put("version", 1)
+        root.put("exportedAt", System.currentTimeMillis())
 
         val carsArray = JSONArray()
         cars.forEach { car ->

@@ -256,15 +256,18 @@ class MainActivity : ComponentActivity() {
     private fun importBackupFile(uri: Uri) {
         lifecycleScope.launch {
             try {
+                val scheduler = AutoDocNotificationScheduler(this@MainActivity)
+
                 val success = BackupManager.importBackupFromUri(
                     context = this@MainActivity,
-                    uri = uri
+                    uri = uri,
+                    scheduler = scheduler
                 )
 
                 Toast.makeText(
                     this@MainActivity,
                     if (success) {
-                        "Datele au fost restaurate complet."
+                        "Datele au fost restaurate complet si notificarile au fost reprogramate."
                     } else {
                         "Fisier backup invalid sau incomplet."
                     },
