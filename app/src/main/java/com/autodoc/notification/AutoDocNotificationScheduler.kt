@@ -6,6 +6,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import java.util.concurrent.TimeUnit
+import kotlin.math.abs
 import kotlin.math.max
 
 class AutoDocNotificationScheduler(
@@ -73,26 +74,9 @@ class AutoDocNotificationScheduler(
             return
         }
 
-        val possibleReminderDays = listOf(
-            EXPIRED_IMMEDIATE_REMINDER,
-            0,
-            1,
-            3,
-            5,
-            7,
-            10,
-            14,
-            15,
-            30,
-            60,
-            90
+        WorkManager.getInstance(context).cancelAllWorkByTag(
+            documentTag(documentId)
         )
-
-        possibleReminderDays.forEach { daysBeforeExpiry ->
-            WorkManager.getInstance(context).cancelUniqueWork(
-                workName(documentId, daysBeforeExpiry)
-            )
-        }
     }
 
     private fun enqueueReminder(
@@ -103,7 +87,10 @@ class AutoDocNotificationScheduler(
         daysBeforeExpiry: Int,
         delayMillis: Long
     ) {
-        val notificationId = documentId * 100 + daysBeforeExpiry
+        val notificationId = createNotificationId(
+            documentId = documentId,
+            daysBeforeExpiry = daysBeforeExpiry
+        )
 
         val data = workDataOf(
             "documentType" to type,
@@ -115,6 +102,7 @@ class AutoDocNotificationScheduler(
         val request = OneTimeWorkRequestBuilder<DocumentReminderWorker>()
             .setInitialDelay(delayMillis, TimeUnit.MILLISECONDS)
             .setInputData(data)
+            .addTag(documentTag(documentId))
             .build()
 
         WorkManager.getInstance(context).enqueueUniqueWork(
@@ -124,11 +112,30 @@ class AutoDocNotificationScheduler(
         )
     }
 
+    private fun createNotificationId(
+        documentId: Int,
+        daysBeforeExpiry: Int
+    ): Int {
+        val safeDaysBefore = if (daysBeforeExpiry < 0) {
+            99
+        } else {
+            daysBeforeExpiry
+        }
+
+        val rawId = documentId.toLong() * 100L + safeDaysBefore.toLong()
+
+        return abs((rawId % Int.MAX_VALUE).toInt())
+    }
+
     private fun workName(
         documentId: Int,
         daysBeforeExpiry: Int
     ): String {
         return "carguard_document_reminder_${documentId}_${daysBeforeExpiry}"
+    }
+
+    private fun documentTag(documentId: Int): String {
+        return "doc_$documentId"
     }
 
     companion object {

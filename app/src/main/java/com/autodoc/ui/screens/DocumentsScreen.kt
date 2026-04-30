@@ -39,31 +39,32 @@ import com.autodoc.ui.AppColors
 import com.autodoc.ui.CarUi
 import com.autodoc.ui.DocumentSeverity
 import com.autodoc.ui.DocumentUi
+import com.autodoc.ui.formatDate
 import com.autodoc.ui.isManuallyNotified
 import com.autodoc.ui.severity
 import com.autodoc.ui.shouldNotifyClient
-import java.time.Instant
-import java.time.ZoneId
 import kotlin.math.abs
 
-private val DeepBg = AppColors.DeepBg
-private val Navy = AppColors.Navy
-private val CardBg = AppColors.CardBg
-private val Border = AppColors.Border
-private val Gold = AppColors.Gold
-private val Danger = AppColors.Danger
-private val Warning = AppColors.Warning
-private val Ok = AppColors.Ok
-private val MutedText = AppColors.MutedText
-private val SoftText = AppColors.SoftText
-
 private enum class DocumentFilter {
-    ALL, URGENT, EXPIRED, SOON, OK
+    ALL,
+    URGENT,
+    EXPIRED,
+    SOON,
+    OK
 }
 
 private data class DocumentWithCar(
     val car: CarUi,
     val document: DocumentUi
+)
+
+private data class DocumentsStats(
+    val totalDocuments: Int,
+    val expiredDocuments: Int,
+    val urgentDocuments: Int,
+    val soonDocuments: Int,
+    val okDocuments: Int,
+    val clientsToNotify: Int
 )
 
 @Composable
@@ -75,60 +76,46 @@ fun DocumentsScreen(
     val notifyIndex = remember { mutableStateOf(0) }
     val context = LocalContext.current
 
-    val allDocuments = cars.flatMap { car ->
-        car.documents.map { document -> DocumentWithCar(car, document) }
-    }
-
-    val expiredCount = allDocuments.count { it.document.severity() == DocumentSeverity.EXPIRED }
-    val urgentCount = allDocuments.count { it.document.severity() == DocumentSeverity.CRITICAL }
-    val soonCount = allDocuments.count { it.document.severity() == DocumentSeverity.SOON }
-    val okCount = allDocuments.count { it.document.severity() == DocumentSeverity.OK }
-
-    val clientsToNotifyCount = allDocuments.count { item ->
-        val hasContact = item.car.ownerPhone.isNotBlank() || item.car.ownerEmail.isNotBlank()
-        item.document.shouldNotifyClient() && hasContact && !item.document.isManuallyNotified()
-    }
-
-    val filteredDocuments = allDocuments
-        .filter { item ->
-            when (activeFilter.value) {
-                DocumentFilter.ALL -> true
-                DocumentFilter.URGENT -> item.document.severity() == DocumentSeverity.CRITICAL
-                DocumentFilter.EXPIRED -> item.document.severity() == DocumentSeverity.EXPIRED
-                DocumentFilter.SOON -> item.document.severity() == DocumentSeverity.SOON
-                DocumentFilter.OK -> item.document.severity() == DocumentSeverity.OK
+    val allDocuments = remember(cars) {
+        cars.flatMap { car ->
+            car.documents.map { document ->
+                DocumentWithCar(car, document)
             }
         }
-        .sortedBy { it.document.daysLeft }
+    }
+
+    val stats = remember(allDocuments) {
+        calculateDocumentsStats(allDocuments)
+    }
+
+    val filteredDocuments = remember(allDocuments, activeFilter.value) {
+        filterDocuments(
+            documents = allDocuments,
+            filter = activeFilter.value
+        )
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(DeepBg)
+            .background(AppColors.DeepBg)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        HeaderDocuments(
-            totalDocuments = allDocuments.size,
-            urgentDocuments = urgentCount,
-            expiredDocuments = expiredCount,
-            soonDocuments = soonCount,
-            okDocuments = okCount,
-            clientsToNotify = clientsToNotifyCount
-        )
+        HeaderDocuments(stats = stats)
 
         FilterButtons(
             activeFilter = activeFilter.value,
-            onFilterChange = { activeFilter.value = it }
+            onFilterChange = {
+                activeFilter.value = it
+            }
         )
 
-        TextButton(
+        NotifyNextButton(
+            clientsToNotifyCount = stats.clientsToNotify,
             onClick = {
                 val documentsToNotify = allDocuments
-                    .filter { item ->
-                        val hasContact = item.car.ownerPhone.isNotBlank() || item.car.ownerEmail.isNotBlank()
-                        item.document.shouldNotifyClient() && hasContact && !item.document.isManuallyNotified()
-                    }
+                    .filter { it.canNotifyClient() }
                     .sortedBy { it.document.daysLeft }
 
                 if (documentsToNotify.isNotEmpty()) {
@@ -141,30 +128,8 @@ fun DocumentsScreen(
 
                     showNotificationToast(context, item.car, item.document)
                 }
-            },
-            enabled = clientsToNotifyCount > 0,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
-            colors = ButtonDefaults.textButtonColors(
-                containerColor = if (clientsToNotifyCount > 0) Ok else Color(0xFF4B5563),
-                disabledContainerColor = Color(0xFF4B5563)
-            ),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Text(
-                text = if (clientsToNotifyCount > 0) {
-                    "Notifica urmatorul ($clientsToNotifyCount ramasi)"
-                } else {
-                    "Nu exista clienti de notificat"
-                },
-                color = Color.White,
-                fontWeight = FontWeight.Black,
-                fontSize = 15.sp,
-                maxLines = 1,
-                softWrap = false
-            )
-        }
+            }
+        )
 
         if (filteredDocuments.isEmpty()) {
             EmptyDocumentsCard()
@@ -190,15 +155,56 @@ fun DocumentsScreen(
     }
 }
 
+private fun calculateDocumentsStats(
+    documents: List<DocumentWithCar>
+): DocumentsStats {
+    return DocumentsStats(
+        totalDocuments = documents.size,
+        expiredDocuments = documents.count {
+            it.document.severity() == DocumentSeverity.EXPIRED
+        },
+        urgentDocuments = documents.count {
+            it.document.severity() == DocumentSeverity.CRITICAL
+        },
+        soonDocuments = documents.count {
+            it.document.severity() == DocumentSeverity.SOON
+        },
+        okDocuments = documents.count {
+            it.document.severity() == DocumentSeverity.OK
+        },
+        clientsToNotify = documents.count {
+            it.canNotifyClient()
+        }
+    )
+}
+
+private fun filterDocuments(
+    documents: List<DocumentWithCar>,
+    filter: DocumentFilter
+): List<DocumentWithCar> {
+    return documents
+        .filter { item ->
+            when (filter) {
+                DocumentFilter.ALL -> true
+                DocumentFilter.URGENT -> item.document.severity() == DocumentSeverity.CRITICAL
+                DocumentFilter.EXPIRED -> item.document.severity() == DocumentSeverity.EXPIRED
+                DocumentFilter.SOON -> item.document.severity() == DocumentSeverity.SOON
+                DocumentFilter.OK -> item.document.severity() == DocumentSeverity.OK
+            }
+        }
+        .sortedBy { it.document.daysLeft }
+}
+
+private fun DocumentWithCar.canNotifyClient(): Boolean {
+    val hasContact = car.ownerPhone.isNotBlank() || car.ownerEmail.isNotBlank()
+
+    return document.shouldNotifyClient() &&
+            hasContact &&
+            !document.isManuallyNotified()
+}
+
 @Composable
-private fun HeaderDocuments(
-    totalDocuments: Int,
-    urgentDocuments: Int,
-    expiredDocuments: Int,
-    soonDocuments: Int,
-    okDocuments: Int,
-    clientsToNotify: Int
-) {
+private fun HeaderDocuments(stats: DocumentsStats) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -210,15 +216,20 @@ private fun HeaderDocuments(
         ) {
             Card(
                 modifier = Modifier.height(48.dp),
-                colors = CardDefaults.cardColors(containerColor = CardBg),
-                border = BorderStroke(1.dp, Border),
+                colors = CardDefaults.cardColors(containerColor = AppColors.CardBg),
+                border = BorderStroke(1.dp, AppColors.Border),
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = "▤", color = Gold, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = "▤",
+                        color = AppColors.Gold,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
 
@@ -230,9 +241,10 @@ private fun HeaderDocuments(
                     fontWeight = FontWeight.Black,
                     maxLines = 1
                 )
+
                 Text(
-                    text = "$urgentDocuments urgente din $totalDocuments documente",
-                    color = Gold,
+                    text = "${stats.urgentDocuments} urgente din ${stats.totalDocuments} documente",
+                    color = AppColors.Gold,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1
@@ -244,11 +256,43 @@ private fun HeaderDocuments(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            SummaryBox("Exp", expiredDocuments.toString(), Danger, Modifier.weight(1f))
-            SummaryBox("Urg", urgentDocuments.toString(), Danger, Modifier.weight(1f))
-            SummaryBox("Cur", soonDocuments.toString(), Warning, Modifier.weight(1f))
-            SummaryBox("Notif", clientsToNotify.toString(), Gold, Modifier.weight(1f))
+            SummaryBox("Exp", stats.expiredDocuments.toString(), AppColors.Danger, Modifier.weight(1f))
+            SummaryBox("Urg", stats.urgentDocuments.toString(), AppColors.Danger, Modifier.weight(1f))
+            SummaryBox("Cur", stats.soonDocuments.toString(), AppColors.Warning, Modifier.weight(1f))
+            SummaryBox("Notif", stats.clientsToNotify.toString(), AppColors.Gold, Modifier.weight(1f))
         }
+    }
+}
+
+@Composable
+private fun NotifyNextButton(
+    clientsToNotifyCount: Int,
+    onClick: () -> Unit
+) {
+    TextButton(
+        onClick = onClick,
+        enabled = clientsToNotifyCount > 0,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(50.dp),
+        colors = ButtonDefaults.textButtonColors(
+            containerColor = if (clientsToNotifyCount > 0) AppColors.Ok else Color(0xFF4B5563),
+            disabledContainerColor = Color(0xFF4B5563)
+        ),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Text(
+            text = if (clientsToNotifyCount > 0) {
+                "Notifica urmatorul ($clientsToNotifyCount ramasi)"
+            } else {
+                "Nu exista clienti de notificat"
+            },
+            color = Color.White,
+            fontWeight = FontWeight.Black,
+            fontSize = 15.sp,
+            maxLines = 1,
+            softWrap = false
+        )
     }
 }
 
@@ -261,8 +305,8 @@ private fun SummaryBox(
 ) {
     Card(
         modifier = modifier.height(68.dp),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
-        border = BorderStroke(1.dp, Border),
+        colors = CardDefaults.cardColors(containerColor = AppColors.CardBg),
+        border = BorderStroke(1.dp, AppColors.Border),
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(
@@ -283,7 +327,7 @@ private fun SummaryBox(
 
             Text(
                 text = title,
-                color = SoftText,
+                color = AppColors.SoftText,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
@@ -300,25 +344,59 @@ private fun FilterButtons(
     onFilterChange: (DocumentFilter) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Filtrare documente", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Black)
+        Text(
+            text = "Filtrare documente",
+            color = Color.White,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Black
+        )
 
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterButton("Urgente", activeFilter == DocumentFilter.URGENT, Modifier.weight(1f)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FilterButton(
+                text = "Urgente",
+                selected = activeFilter == DocumentFilter.URGENT,
+                modifier = Modifier.weight(1f)
+            ) {
                 onFilterChange(DocumentFilter.URGENT)
             }
-            FilterButton("Toate", activeFilter == DocumentFilter.ALL, Modifier.weight(1f)) {
+
+            FilterButton(
+                text = "Toate",
+                selected = activeFilter == DocumentFilter.ALL,
+                modifier = Modifier.weight(1f)
+            ) {
                 onFilterChange(DocumentFilter.ALL)
             }
         }
 
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterButton("Expirate", activeFilter == DocumentFilter.EXPIRED, Modifier.weight(1f)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FilterButton(
+                text = "Expirate",
+                selected = activeFilter == DocumentFilter.EXPIRED,
+                modifier = Modifier.weight(1f)
+            ) {
                 onFilterChange(DocumentFilter.EXPIRED)
             }
-            FilterButton("Curand", activeFilter == DocumentFilter.SOON, Modifier.weight(1f)) {
+
+            FilterButton(
+                text = "Curand",
+                selected = activeFilter == DocumentFilter.SOON,
+                modifier = Modifier.weight(1f)
+            ) {
                 onFilterChange(DocumentFilter.SOON)
             }
-            FilterButton("OK", activeFilter == DocumentFilter.OK, Modifier.weight(1f)) {
+
+            FilterButton(
+                text = "OK",
+                selected = activeFilter == DocumentFilter.OK,
+                modifier = Modifier.weight(1f)
+            ) {
                 onFilterChange(DocumentFilter.OK)
             }
         }
@@ -336,8 +414,10 @@ private fun FilterButton(
         modifier = modifier
             .height(42.dp)
             .clickable { onClick() },
-        colors = CardDefaults.cardColors(containerColor = if (selected) Gold else CardBg),
-        border = if (selected) null else BorderStroke(1.dp, Border),
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) AppColors.Gold else AppColors.CardBg
+        ),
+        border = if (selected) null else BorderStroke(1.dp, AppColors.Border),
         shape = RoundedCornerShape(50.dp)
     ) {
         Row(
@@ -349,7 +429,7 @@ private fun FilterButton(
         ) {
             Text(
                 text = text,
-                color = if (selected) Navy else SoftText,
+                color = if (selected) AppColors.Navy else AppColors.SoftText,
                 fontWeight = if (selected) FontWeight.Black else FontWeight.Bold,
                 fontSize = 13.sp,
                 maxLines = 1,
@@ -366,21 +446,26 @@ private fun EmptyDocumentsCard() {
         modifier = Modifier
             .fillMaxWidth()
             .height(100.dp),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
-        border = BorderStroke(1.dp, Border),
+        colors = CardDefaults.cardColors(containerColor = AppColors.CardBg),
+        border = BorderStroke(1.dp, AppColors.Border),
         shape = RoundedCornerShape(22.dp)
     ) {
-        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.Center) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.Center
+        ) {
             Text(
                 text = "Nu exista documente pentru filtrul selectat.",
                 color = Color.White,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
+
             Spacer(modifier = Modifier.height(6.dp))
+
             Text(
                 text = "Schimba filtrul sau adauga documente noi.",
-                color = SoftText,
+                color = AppColors.SoftText,
                 fontSize = 14.sp
             )
         }
@@ -398,10 +483,10 @@ private fun DocumentItem(
     val shouldNotify = document.shouldNotifyClient()
 
     val color = when (severity) {
-        DocumentSeverity.EXPIRED -> Danger
-        DocumentSeverity.CRITICAL -> Danger
-        DocumentSeverity.SOON -> Warning
-        DocumentSeverity.OK -> Ok
+        DocumentSeverity.EXPIRED -> AppColors.Danger
+        DocumentSeverity.CRITICAL -> AppColors.Danger
+        DocumentSeverity.SOON -> AppColors.Warning
+        DocumentSeverity.OK -> AppColors.Ok
     }
 
     val statusLabel = when (severity) {
@@ -417,12 +502,19 @@ private fun DocumentItem(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
-        border = BorderStroke(1.dp, Border),
+        colors = CardDefaults.cardColors(containerColor = AppColors.CardBg),
+        border = BorderStroke(1.dp, AppColors.Border),
         shape = RoundedCornerShape(22.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
                     text = document.type,
                     color = Color.White,
@@ -435,14 +527,42 @@ private fun DocumentItem(
             }
 
             if (isNotified) {
-                StatusBadge("NOTIFICAT", Gold, darkText = true)
+                StatusBadge("NOTIFICAT", AppColors.Gold, darkText = true)
             }
 
-            Text(text = statusText(document), color = color, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            Text(text = "${car.brand} ${car.model}", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            Text(text = car.plate, color = Gold, fontSize = 17.sp, fontWeight = FontWeight.Black)
-            Text(text = "Data expirarii: ${formatDate(document.expiryDateMillis)}", color = MutedText, fontSize = 14.sp)
-            Text(text = "Client: ${car.ownerName.ifBlank { "nespecificat" }}", color = MutedText, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            Text(
+                text = statusText(document),
+                color = color,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            Text(
+                text = "${car.brand} ${car.model}",
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            Text(
+                text = car.plate,
+                color = AppColors.Gold,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Black
+            )
+
+            Text(
+                text = "Data expirarii: ${formatDate(document.expiryDateMillis)}",
+                color = AppColors.MutedText,
+                fontSize = 14.sp
+            )
+
+            Text(
+                text = "Client: ${car.ownerName.ifBlank { "nespecificat" }}",
+                color = AppColors.MutedText,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium
+            )
 
             Text(
                 text = when {
@@ -450,7 +570,7 @@ private fun DocumentItem(
                     hasEmail -> "Email: ${car.ownerEmail}"
                     else -> "Contact lipsa"
                 },
-                color = if (hasPhone || hasEmail) MutedText else Warning,
+                color = if (hasPhone || hasEmail) AppColors.MutedText else AppColors.Warning,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium
             )
@@ -463,12 +583,12 @@ private fun DocumentItem(
                     .height(48.dp),
                 colors = ButtonDefaults.textButtonColors(
                     containerColor = when {
-                        isNotified -> Gold
+                        isNotified -> AppColors.Gold
                         !shouldNotify -> Color(0xFF4B5563)
-                        hasPhone || hasEmail -> Ok
+                        hasPhone || hasEmail -> AppColors.Ok
                         else -> Color(0xFF4B5563)
                     },
-                    disabledContainerColor = if (isNotified) Gold else Color(0xFF4B5563)
+                    disabledContainerColor = if (isNotified) AppColors.Gold else Color(0xFF4B5563)
                 ),
                 shape = RoundedCornerShape(15.dp)
             ) {
@@ -480,7 +600,7 @@ private fun DocumentItem(
                         hasEmail -> "Trimite email"
                         else -> "Contact lipsa"
                     },
-                    color = if (isNotified) Navy else Color.White,
+                    color = if (isNotified) AppColors.Navy else Color.White,
                     fontWeight = FontWeight.Black,
                     fontSize = 14.sp,
                     maxLines = 1,
@@ -503,7 +623,7 @@ private fun StatusBadge(
     ) {
         Text(
             text = text,
-            color = if (darkText) Navy else Color.White,
+            color = if (darkText) AppColors.Navy else Color.White,
             fontSize = 11.sp,
             fontWeight = FontWeight.Black,
             modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
@@ -513,16 +633,27 @@ private fun StatusBadge(
     }
 }
 
-private fun notifyClient(context: Context, car: CarUi, document: DocumentUi) {
+private fun notifyClient(
+    context: Context,
+    car: CarUi,
+    document: DocumentUi
+) {
     when {
         car.ownerPhone.isNotBlank() -> sendWhatsAppNotification(context, car, document)
         car.ownerEmail.isNotBlank() -> sendEmailNotification(context, car, document)
     }
 }
 
-private fun sendWhatsAppNotification(context: Context, car: CarUi, document: DocumentUi) {
+private fun sendWhatsAppNotification(
+    context: Context,
+    car: CarUi,
+    document: DocumentUi
+) {
     val phone = normalizePhoneForWhatsApp(car.ownerPhone)
-    if (phone.isBlank()) return
+
+    if (phone.isBlank()) {
+        return
+    }
 
     val message = buildClientMessage(car, document)
     val uri = Uri.parse("https://wa.me/$phone?text=${Uri.encode(message)}")
@@ -534,7 +665,11 @@ private fun sendWhatsAppNotification(context: Context, car: CarUi, document: Doc
     }
 }
 
-private fun sendEmailNotification(context: Context, car: CarUi, document: DocumentUi) {
+private fun sendEmailNotification(
+    context: Context,
+    car: CarUi,
+    document: DocumentUi
+) {
     val subject = "Notificare document auto - ${document.type}"
     val message = buildClientMessage(car, document)
 
@@ -557,6 +692,7 @@ private fun showNotificationToast(
     document: DocumentUi
 ) {
     val clientName = car.ownerName.ifBlank { car.plate }
+
     Toast.makeText(
         context,
         "Client notificat: $clientName - ${document.type}",
@@ -564,7 +700,10 @@ private fun showNotificationToast(
     ).show()
 }
 
-private fun buildClientMessage(car: CarUi, document: DocumentUi): String {
+private fun buildClientMessage(
+    car: CarUi,
+    document: DocumentUi
+): String {
     val greeting = if (car.ownerName.isNotBlank()) {
         "Buna ziua, ${car.ownerName},"
     } else {
@@ -599,13 +738,6 @@ private fun normalizePhoneForWhatsApp(phone: String): String {
         digits.startsWith("0") -> "40" + digits.drop(1)
         else -> digits
     }
-}
-
-private fun formatDate(millis: Long): String {
-    return Instant.ofEpochMilli(millis)
-        .atZone(ZoneId.systemDefault())
-        .toLocalDate()
-        .toString()
 }
 
 private fun statusText(document: DocumentUi): String {

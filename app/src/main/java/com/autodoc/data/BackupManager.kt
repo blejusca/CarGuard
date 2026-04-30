@@ -9,6 +9,7 @@ import android.provider.MediaStore
 import com.autodoc.data.entity.CarEntity
 import com.autodoc.data.entity.DocumentEntity
 import com.autodoc.notification.AutoDocNotificationScheduler
+import com.autodoc.ui.normalizeDocumentType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -16,6 +17,8 @@ import org.json.JSONObject
 import java.io.File
 
 object BackupManager {
+
+    private const val BACKUP_VERSION = 1
 
     suspend fun saveBackupToFile(context: Context): File {
         return withContext(Dispatchers.IO) {
@@ -112,6 +115,11 @@ object BackupManager {
                     return@withContext false
                 }
 
+                val backupVersion = root.optInt("version", BACKUP_VERSION)
+                if (backupVersion > BACKUP_VERSION) {
+                    return@withContext false
+                }
+
                 val carsArray = root.getJSONArray("cars")
                 val documentsArray = root.getJSONArray("documents")
 
@@ -125,18 +133,25 @@ object BackupManager {
                     val obj = carsArray.getJSONObject(i)
 
                     val oldId = obj.optInt("id", 0)
+                    val brand = obj.optString("brand", "").trim()
+                    val model = obj.optString("model", "").trim()
+                    val plate = obj.optString("plate", "").trim().uppercase()
+
+                    if (oldId <= 0 || brand.isBlank() || model.isBlank() || plate.isBlank()) {
+                        continue
+                    }
 
                     val carToInsert = CarEntity(
                         id = 0,
-                        brand = obj.optString("brand", ""),
-                        model = obj.optString("model", ""),
-                        plate = obj.optString("plate", ""),
+                        brand = brand,
+                        model = model,
+                        plate = plate,
                         year = obj.optInt("year", 0),
-                        engine = obj.optString("engine", ""),
-                        ownerName = obj.optString("ownerName", ""),
-                        ownerPhone = obj.optString("ownerPhone", ""),
-                        ownerEmail = obj.optString("ownerEmail", ""),
-                        ownerNotes = obj.optString("ownerNotes", "")
+                        engine = obj.optString("engine", "").trim().ifBlank { "Nespecificat" },
+                        ownerName = obj.optString("ownerName", "").trim(),
+                        ownerPhone = obj.optString("ownerPhone", "").trim(),
+                        ownerEmail = obj.optString("ownerEmail", "").trim(),
+                        ownerNotes = obj.optString("ownerNotes", "").trim()
                     )
 
                     val newId = db.carDao().insert(carToInsert)
@@ -151,12 +166,25 @@ object BackupManager {
                     val oldCarId = obj.optInt("carId", 0)
                     val newCarId = carIdMap[oldCarId]?.toInt() ?: continue
 
+                    val cleanType = normalizeDocumentType(
+                        obj.optString("type", "")
+                    )
+
+                    val expiryDate = obj.optLong("expiryDate", 0L)
+                    val reminderDaysBefore = obj
+                        .optInt("reminderDaysBefore", 7)
+                        .coerceAtLeast(0)
+
+                    if (cleanType.isBlank() || expiryDate <= 0L) {
+                        continue
+                    }
+
                     val documentToInsert = DocumentEntity(
                         id = 0,
                         carId = newCarId,
-                        type = obj.optString("type", ""),
-                        expiryDate = obj.optLong("expiryDate", 0L),
-                        reminderDaysBefore = obj.optInt("reminderDaysBefore", 7),
+                        type = cleanType,
+                        expiryDate = expiryDate,
+                        reminderDaysBefore = reminderDaysBefore,
                         notifiedExpired = obj.optBoolean("notifiedExpired", false),
                         notifiedToday = obj.optBoolean("notifiedToday", false),
                         notifiedTomorrow = obj.optBoolean("notifiedTomorrow", false),
@@ -195,7 +223,7 @@ object BackupManager {
     ): String {
         val root = JSONObject()
 
-        root.put("version", 1)
+        root.put("version", BACKUP_VERSION)
         root.put("exportedAt", System.currentTimeMillis())
 
         val carsArray = JSONArray()

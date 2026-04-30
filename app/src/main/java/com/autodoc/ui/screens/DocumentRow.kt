@@ -71,89 +71,35 @@ fun DocumentRow(
             .padding(vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text(
-            text = "${document.type} - ${documentStatusText(document.daysLeft)}",
-            color = statusColor(document),
-            fontWeight = FontWeight.Bold
+        DocumentInfo(document = document)
+
+        DocumentActionButtons(
+            onToggleEdit = {
+                showEdit.value = !showEdit.value
+                editDateError.value = ""
+            },
+            onRequestDelete = {
+                showDeleteDocumentDialog.value = true
+            }
         )
 
-        Text(
-            text = "Data expirarii: ${formatDate(document.expiryDateMillis)}",
-            color = AppColors.MutedText
-        )
-
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(
-                onClick = {
-                    showEdit.value = !showEdit.value
-                    editDateError.value = ""
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = AppColors.Gold),
-                shape = RoundedCornerShape(14.dp)
-            ) {
-                Text(
-                    text = "Editeaza",
-                    color = AppColors.Navy,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Button(
-                onClick = {
-                    showDeleteDocumentDialog.value = true
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = AppColors.Danger),
-                shape = RoundedCornerShape(14.dp)
-            ) {
-                Text(
-                    text = "Sterge",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-
-        Button(
+        WhatsAppNotifyButton(
+            canNotify = canNotify,
+            shouldNotify = shouldNotify,
+            hasPhone = hasPhone,
             onClick = {
                 sendWhatsAppNotification(context, car, document)
-            },
-            enabled = canNotify,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = if (canNotify) AppColors.Ok else Color(0xFF6B7280),
-                disabledContainerColor = Color(0xFF6B7280)
-            ),
-            shape = RoundedCornerShape(14.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                text = when {
-                    !shouldNotify -> "Nu necesita notificare"
-                    !hasPhone -> "Telefon client lipsa"
-                    else -> "Notifica WhatsApp"
-                },
-                color = Color.White,
-                fontWeight = FontWeight.Bold
-            )
-        }
+            }
+        )
 
         if (showEdit.value) {
-            if (editDateError.value.isNotBlank()) {
-                Text(
-                    text = editDateError.value,
-                    color = AppColors.Danger,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
-                )
-            }
-
-            DatePickerDarkField(
-                value = newDate.value,
-                onChange = { newDate.value = it },
-                label = "Data noua"
-            )
-
-            Button(
-                onClick = {
+            EditDocumentDateSection(
+                newDate = newDate.value,
+                errorMessage = editDateError.value,
+                onDateChange = {
+                    newDate.value = it
+                },
+                onSave = {
                     val validationError = validateExpiryDate(newDate.value)
                     val millis = parseDateToMillis(newDate.value)
 
@@ -165,18 +111,120 @@ fun DocumentRow(
                         editDateError.value = ""
                         showEdit.value = false
                     }
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = AppColors.Ok),
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = "Salveaza data noua",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+                }
+            )
         }
+    }
+}
+
+@Composable
+private fun DocumentInfo(document: DocumentUi) {
+    Text(
+        text = "${document.type} - ${documentStatusText(document.daysLeft)}",
+        color = statusColor(document),
+        fontWeight = FontWeight.Bold
+    )
+
+    Text(
+        text = "Data expirarii: ${formatDate(document.expiryDateMillis)}",
+        color = AppColors.MutedText
+    )
+}
+
+@Composable
+private fun DocumentActionButtons(
+    onToggleEdit: () -> Unit,
+    onRequestDelete: () -> Unit
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Button(
+            onClick = onToggleEdit,
+            colors = ButtonDefaults.buttonColors(containerColor = AppColors.Gold),
+            shape = RoundedCornerShape(14.dp)
+        ) {
+            Text(
+                text = "Editeaza",
+                color = AppColors.Navy,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        Button(
+            onClick = onRequestDelete,
+            colors = ButtonDefaults.buttonColors(containerColor = AppColors.Danger),
+            shape = RoundedCornerShape(14.dp)
+        ) {
+            Text(
+                text = "Sterge",
+                color = Color.White,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+@Composable
+private fun WhatsAppNotifyButton(
+    canNotify: Boolean,
+    shouldNotify: Boolean,
+    hasPhone: Boolean,
+    onClick: () -> Unit
+) {
+    Button(
+        onClick = onClick,
+        enabled = canNotify,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (canNotify) AppColors.Ok else Color(0xFF6B7280),
+            disabledContainerColor = Color(0xFF6B7280)
+        ),
+        shape = RoundedCornerShape(14.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = when {
+                !shouldNotify -> "Nu necesita notificare"
+                !hasPhone -> "Telefon client lipsa"
+                else -> "Notifica WhatsApp"
+            },
+            color = Color.White,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+@Composable
+private fun EditDocumentDateSection(
+    newDate: String,
+    errorMessage: String,
+    onDateChange: (String) -> Unit,
+    onSave: () -> Unit
+) {
+    if (errorMessage.isNotBlank()) {
+        Text(
+            text = errorMessage,
+            color = AppColors.Danger,
+            fontWeight = FontWeight.Bold,
+            fontSize = 14.sp
+        )
+    }
+
+    DatePickerDarkField(
+        value = newDate,
+        onChange = onDateChange,
+        label = "Data noua"
+    )
+
+    Button(
+        onClick = onSave,
+        colors = ButtonDefaults.buttonColors(containerColor = AppColors.Ok),
+        shape = RoundedCornerShape(14.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = "Salveaza data noua",
+            color = Color.White,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 

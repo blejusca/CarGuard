@@ -16,7 +16,7 @@ interface CarDao {
     fun observeCars(): Flow<List<CarEntity>>
 
     @Query("SELECT * FROM cars")
-    fun getAllCarsSync(): List<CarEntity>
+    suspend fun getAllCarsSync(): List<CarEntity>
 
     @Query("""
         UPDATE cars 
@@ -50,7 +50,6 @@ interface CarDao {
     @Query("SELECT * FROM cars WHERE id = :carId LIMIT 1")
     suspend fun getCarById(carId: Int): CarEntity?
 
-    // 🔴 NECESAR pentru IMPORT BACKUP
     @Query("DELETE FROM cars")
     suspend fun deleteAll()
 }

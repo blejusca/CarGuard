@@ -18,6 +18,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
+import kotlin.math.abs
 
 class DocumentReminderWorker(
     context: Context,
@@ -42,7 +43,10 @@ class DocumentReminderWorker(
             .atZone(ZoneId.systemDefault())
             .toLocalDate()
 
-        val daysLeft = ChronoUnit.DAYS.between(LocalDate.now(), expiryDate).toInt()
+        val daysLeft = ChronoUnit.DAYS.between(
+            LocalDate.now(),
+            expiryDate
+        ).toInt()
 
         val statusText = when {
             daysLeft < 0 -> "a expirat"
@@ -74,7 +78,7 @@ class DocumentReminderWorker(
         ) {
             showNotification(
                 context = context,
-                notificationId = System.currentTimeMillis().toInt(),
+                notificationId = createSafeNotificationId(),
                 title = title,
                 message = message
             )
@@ -145,6 +149,10 @@ class DocumentReminderWorker(
             } else {
                 true
             }
+        }
+
+        private fun createSafeNotificationId(): Int {
+            return abs((System.currentTimeMillis() % Int.MAX_VALUE).toInt())
         }
     }
 }

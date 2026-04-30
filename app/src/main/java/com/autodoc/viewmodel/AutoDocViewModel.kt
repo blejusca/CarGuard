@@ -9,6 +9,7 @@ import com.autodoc.data.entity.DocumentEntity
 import com.autodoc.domain.mapper.toUi
 import com.autodoc.notification.AutoDocNotificationScheduler
 import com.autodoc.ui.CarUi
+import com.autodoc.ui.normalizeDocumentType
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -272,17 +273,6 @@ class AutoDocViewModel(
 
         viewModelScope.launch {
             documentDao.markReminderNotified(documentId)
-        }
-    }
-
-    private fun normalizeDocumentType(type: String): String {
-        return when (type.trim().lowercase()) {
-            "itp" -> "ITP"
-            "rca" -> "RCA"
-            "casco" -> "CASCO"
-            "rovinieta" -> "Rovinieta"
-            "revizie" -> "Revizie"
-            else -> type.trim()
         }
     }
 }

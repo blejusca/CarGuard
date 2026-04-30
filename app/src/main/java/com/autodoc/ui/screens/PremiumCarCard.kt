@@ -37,7 +37,7 @@ import com.autodoc.ui.DocumentSeverity
 import com.autodoc.ui.DocumentUi
 import com.autodoc.ui.documentStatusText
 import com.autodoc.ui.severity
-import java.time.LocalDate
+import com.autodoc.ui.validators.validateCarInput
 
 @Composable
 fun PremiumCarCard(
@@ -101,12 +101,14 @@ fun PremiumCarCard(
                 fontSize = 23.sp,
                 fontWeight = FontWeight.Black
             )
+
             Text(
                 text = car.plate,
                 color = AppColors.MutedText,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
             )
+
             Text(
                 text = "${car.year} • ${car.engine.ifBlank { "Motorizare nespecificata" }}",
                 color = AppColors.SoftText,
@@ -114,7 +116,7 @@ fun PremiumCarCard(
                 fontWeight = FontWeight.Medium
             )
 
-            if (car.ownerName.isNotBlank() || car.ownerPhone.isNotBlank() || car.ownerEmail.isNotBlank()) {
+            if (hasOwnerInfo(car)) {
                 Divider(color = AppColors.Border)
 
                 Text(
@@ -141,67 +143,20 @@ fun PremiumCarCard(
                 }
             }
 
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(3.dp)
-            ) {
-                Text(
-                    text = "${car.documents.size} ${if (car.documents.size == 1) "document" else "documente"}",
-                    color = AppColors.Gold,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = mostUrgent?.let {
-                        "${it.type}: ${documentStatusText(it.daysLeft)}"
-                    } ?: "Fara documente",
-                    color = mostUrgent?.let { statusColor(it) } ?: AppColors.MutedText,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    lineHeight = 19.sp
-                )
-            }
+            DocumentSummary(
+                documentsCount = car.documents.size,
+                mostUrgent = mostUrgent
+            )
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Button(
-                    onClick = { showEditCar.value = !showEditCar.value },
-                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.Gold),
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(44.dp)
-                ) {
-                    Text(
-                        text = if (showEditCar.value) "Inchide" else "Editeaza",
-                        color = AppColors.Navy,
-                        fontWeight = FontWeight.Black,
-                        fontSize = 14.sp,
-                        maxLines = 1,
-                        softWrap = false
-                    )
+            CarActionButtons(
+                isEditing = showEditCar.value,
+                onToggleEdit = {
+                    showEditCar.value = !showEditCar.value
+                },
+                onExportPdf = {
+                    onExportCarPdf(car)
                 }
-
-                Button(
-                    onClick = { onExportCarPdf(car) },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1D4ED8)),
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(44.dp)
-                ) {
-                    Text(
-                        text = "Export PDF",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
-                        maxLines = 1,
-                        softWrap = false
-                    )
-                }
-            }
+            )
 
             if (showEditCar.value) {
                 EditCarForm(
@@ -241,61 +196,161 @@ fun PremiumCarCard(
             }
 
             if (expanded) {
-                Divider(color = AppColors.Border)
-
-                if (car.ownerNotes.isNotBlank()) {
-                    Text(
-                        text = "Observatii client:",
-                        color = AppColors.Gold,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = car.ownerNotes,
-                        color = AppColors.MutedText
-                    )
-                    Divider(color = AppColors.Border)
-                }
-
-                if (car.documents.isEmpty()) {
-                    Text(
-                        text = "Nu exista documente adaugate.",
-                        color = Color.White
-                    )
-                } else {
-                    car.documents.forEach { document ->
-                        DocumentRow(
-                            car = car,
-                            document = document,
-                            onDeleteDocument = onDeleteDocument,
-                            onUpdateDocumentExpiry = onUpdateDocumentExpiry
-                        )
-                    }
-                }
-
-                AddDocumentForm(
-                    carId = car.id,
-                    existingDocuments = car.documents,
-                    onAddDocument = onAddDocument
-                )
-
-                Divider(color = AppColors.Border)
-
-                Button(
-                    onClick = {
+                ExpandedCarContent(
+                    car = car,
+                    onAddDocument = onAddDocument,
+                    onDeleteDocument = onDeleteDocument,
+                    onUpdateDocumentExpiry = onUpdateDocumentExpiry,
+                    onRequestDeleteCar = {
                         showDeleteCarDialog.value = true
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.Danger),
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = "Sterge masina",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                    }
+                )
             }
         }
+    }
+}
+
+@Composable
+private fun DocumentSummary(
+    documentsCount: Int,
+    mostUrgent: DocumentUi?
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
+        Text(
+            text = "$documentsCount ${if (documentsCount == 1) "document" else "documente"}",
+            color = AppColors.Gold,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        Text(
+            text = mostUrgent?.let {
+                "${it.type}: ${documentStatusText(it.daysLeft)}"
+            } ?: "Fara documente",
+            color = mostUrgent?.let { statusColor(it) } ?: AppColors.MutedText,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold,
+            lineHeight = 19.sp
+        )
+    }
+}
+
+@Composable
+private fun CarActionButtons(
+    isEditing: Boolean,
+    onToggleEdit: () -> Unit,
+    onExportPdf: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Button(
+            onClick = onToggleEdit,
+            colors = ButtonDefaults.buttonColors(containerColor = AppColors.Gold),
+            shape = RoundedCornerShape(14.dp),
+            modifier = Modifier
+                .weight(1f)
+                .height(44.dp)
+        ) {
+            Text(
+                text = if (isEditing) "Inchide" else "Editeaza",
+                color = AppColors.Navy,
+                fontWeight = FontWeight.Black,
+                fontSize = 14.sp,
+                maxLines = 1,
+                softWrap = false
+            )
+        }
+
+        Button(
+            onClick = onExportPdf,
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1D4ED8)),
+            shape = RoundedCornerShape(14.dp),
+            modifier = Modifier
+                .weight(1f)
+                .height(44.dp)
+        ) {
+            Text(
+                text = "Export PDF",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                maxLines = 1,
+                softWrap = false
+            )
+        }
+    }
+}
+
+@Composable
+private fun ExpandedCarContent(
+    car: CarUi,
+    onAddDocument: (
+        carId: Int,
+        type: String,
+        expiryDateMillis: Long,
+        reminderDaysBefore: Int
+    ) -> Unit,
+    onDeleteDocument: (documentId: Int) -> Unit,
+    onUpdateDocumentExpiry: (documentId: Int, expiryDateMillis: Long) -> Unit,
+    onRequestDeleteCar: () -> Unit
+) {
+    Divider(color = AppColors.Border)
+
+    if (car.ownerNotes.isNotBlank()) {
+        Text(
+            text = "Observatii client:",
+            color = AppColors.Gold,
+            fontWeight = FontWeight.Bold
+        )
+
+        Text(
+            text = car.ownerNotes,
+            color = AppColors.MutedText
+        )
+
+        Divider(color = AppColors.Border)
+    }
+
+    if (car.documents.isEmpty()) {
+        Text(
+            text = "Nu exista documente adaugate.",
+            color = Color.White
+        )
+    } else {
+        car.documents.forEach { document ->
+            DocumentRow(
+                car = car,
+                document = document,
+                onDeleteDocument = onDeleteDocument,
+                onUpdateDocumentExpiry = onUpdateDocumentExpiry
+            )
+        }
+    }
+
+    AddDocumentForm(
+        carId = car.id,
+        existingDocuments = car.documents,
+        onAddDocument = onAddDocument
+    )
+
+    Divider(color = AppColors.Border)
+
+    Button(
+        onClick = onRequestDeleteCar,
+        colors = ButtonDefaults.buttonColors(containerColor = AppColors.Danger),
+        shape = RoundedCornerShape(14.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = "Sterge masina",
+            color = Color.White,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 
@@ -536,132 +591,10 @@ private fun ConfirmDeleteDialog(
     )
 }
 
-private fun validateCarInput(
-    brand: String,
-    model: String,
-    plate: String,
-    yearText: String,
-    engine: String,
-    ownerName: String,
-    ownerPhone: String,
-    ownerEmail: String
-): String {
-    val errors = mutableListOf<String>()
-
-    val cleanBrand = brand.trim()
-    val cleanModel = model.trim()
-    val cleanPlate = plate.trim().uppercase()
-    val cleanYear = yearText.trim()
-    val cleanEngine = engine.trim()
-    val cleanOwnerName = ownerName.trim()
-    val cleanOwnerPhone = ownerPhone.trim()
-    val cleanOwnerEmail = ownerEmail.trim()
-
-    val currentYear = LocalDate.now().year
-    val maxAllowedYear = currentYear + 1
-    val parsedYear = cleanYear.toIntOrNull()
-
-    if (cleanBrand.isBlank()) {
-        errors.add("Marca este obligatorie.")
-    } else if (!isValidBrand(cleanBrand)) {
-        errors.add("Marca nu este valida. Foloseste doar litere, spatii sau cratima, maximum 25 caractere.")
-    }
-
-    if (cleanModel.isBlank()) {
-        errors.add("Modelul este obligatoriu.")
-    } else if (!isValidModel(cleanModel)) {
-        errors.add("Modelul nu este valid. Foloseste litere, cifre, spatii sau cratima, maximum 25 caractere.")
-    }
-
-    if (cleanPlate.isBlank()) {
-        errors.add("Numarul de inmatriculare este obligatoriu.")
-    } else if (!isValidPlate(cleanPlate)) {
-        errors.add("Numarul de inmatriculare nu este valid. Foloseste 3-12 caractere: litere, cifre, spatii sau cratima.")
-    }
-
-    if (cleanYear.isBlank()) {
-        errors.add("Anul fabricatiei este obligatoriu.")
-    } else if (parsedYear == null) {
-        errors.add("Anul fabricatiei trebuie sa fie numeric.")
-    } else if (parsedYear !in 1950..maxAllowedYear) {
-        errors.add("Anul fabricatiei trebuie sa fie intre 1950 si $maxAllowedYear.")
-    }
-
-    if (cleanEngine.isNotBlank() && !isValidEngine(cleanEngine)) {
-        errors.add("Motorizarea nu este valida. Exemple acceptate: 1.6 TDI, 2.0 benzina, electric, hybrid.")
-    }
-
-    if (cleanOwnerName.isNotBlank() && !isReasonableName(cleanOwnerName)) {
-        errors.add("Numele clientului nu este valid. Foloseste minimum 2 caractere si fara cifre.")
-    }
-
-    if (cleanOwnerPhone.isNotBlank() && !isValidPhone(cleanOwnerPhone)) {
-        errors.add("Telefonul clientului nu este valid. Trebuie sa contina intre 8 si 15 cifre.")
-    }
-
-    if (cleanOwnerEmail.isNotBlank() && !isValidEmail(cleanOwnerEmail)) {
-        errors.add("Emailul clientului nu este valid sau pare scris gresit.")
-    }
-
-    return errors.joinToString(separator = "\n")
-}
-
-private fun isValidBrand(value: String): Boolean {
-    return Regex("""^[A-Za-zÀ-ž -]{2,25}$""").matches(value.trim())
-}
-
-private fun isValidModel(value: String): Boolean {
-    return Regex("""^[A-Za-zÀ-ž0-9 -]{1,25}$""").matches(value.trim())
-}
-
-private fun isValidPlate(value: String): Boolean {
-    return Regex("""^[A-Z0-9 -]{3,12}$""").matches(value.trim().uppercase())
-}
-
-private fun isValidEngine(value: String): Boolean {
-    val cleanValue = value.trim().lowercase()
-
-    if (cleanValue in listOf("electric", "hibrid", "hybrid", "benzina", "diesel", "gpl", "gaz")) {
-        return true
-    }
-
-    val pattern = Regex("""^[0-9](\.[0-9])? ?[A-Za-zÀ-ž0-9 -]{0,15}$""")
-
-    return pattern.matches(cleanValue) && cleanValue.length <= 20
-}
-
-private fun isValidPhone(value: String): Boolean {
-    return value.filter { it.isDigit() }.length in 8..15
-}
-
-private fun isValidEmail(value: String): Boolean {
-    val email = value.trim().lowercase()
-    val emailPattern = Regex("""^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$""")
-
-    if (!emailPattern.matches(email)) {
-        return false
-    }
-
-    val suspiciousParts = listOf(
-        "..",
-        ".,",
-        ",.",
-        ".coom",
-        ".comm",
-        "@yaoo.",
-        "@yahooo.",
-        "@yahho.",
-        "@gmai.",
-        "@gmial.",
-        "@hotmial.",
-        "@outlok."
-    )
-
-    return suspiciousParts.none { email.contains(it) }
-}
-
-private fun isReasonableName(value: String): Boolean {
-    return Regex("""^[A-Za-zÀ-ž -]{2,40}$""").matches(value.trim())
+private fun hasOwnerInfo(car: CarUi): Boolean {
+    return car.ownerName.isNotBlank() ||
+            car.ownerPhone.isNotBlank() ||
+            car.ownerEmail.isNotBlank()
 }
 
 private fun statusColor(document: DocumentUi): Color {

@@ -22,7 +22,7 @@ interface DocumentDao {
     suspend fun getAllDocuments(): List<DocumentEntity>
 
     @Query("SELECT * FROM documents")
-    fun getAllDocumentsSync(): List<DocumentEntity>
+    suspend fun getAllDocumentsSync(): List<DocumentEntity>
 
     @Query("DELETE FROM documents WHERE id = :documentId")
     suspend fun deleteById(documentId: Int)
@@ -32,6 +32,7 @@ interface DocumentDao {
         carId: Int,
         type: String
     ): DocumentEntity?
+
     @Query(
         """
         UPDATE documents 
@@ -44,7 +45,10 @@ interface DocumentDao {
         WHERE id = :documentId
         """
     )
-    suspend fun updateExpiryDate(documentId: Int, expiryDateMillis: Long)
+    suspend fun updateExpiryDate(
+        documentId: Int,
+        expiryDateMillis: Long
+    )
 
     @Query("UPDATE documents SET notifiedExpired = 1 WHERE id = :id")
     suspend fun markExpiredNotified(id: Int)
@@ -58,7 +62,6 @@ interface DocumentDao {
     @Query("UPDATE documents SET notifiedReminder = 1 WHERE id = :id")
     suspend fun markReminderNotified(id: Int)
 
-    // 🔴 NECESAR pentru IMPORT BACKUP
     @Query("DELETE FROM documents")
     suspend fun deleteAll()
 }

@@ -85,7 +85,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        currentScreen = AppScreen.DASHBOARD
+        currentScreen = savedInstanceState
+            ?.getString(KEY_CURRENT_SCREEN)
+            ?.let { screenName ->
+                runCatching { AppScreen.valueOf(screenName) }.getOrNull()
+            }
+            ?: AppScreen.DASHBOARD
 
         requestNotificationPermissionIfNeeded()
         scheduleDailyDocumentCheck()
@@ -232,9 +237,9 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onRestart() {
-        super.onRestart()
-        currentScreen = AppScreen.DASHBOARD
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString(KEY_CURRENT_SCREEN, currentScreen.name)
+        super.onSaveInstanceState(outState)
     }
 
     private fun exportBackupFile() {
@@ -353,6 +358,10 @@ class MainActivity : ComponentActivity() {
             ExistingPeriodicWorkPolicy.UPDATE,
             request
         )
+    }
+
+    companion object {
+        private const val KEY_CURRENT_SCREEN = "current_screen"
     }
 }
 

@@ -29,6 +29,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,6 +46,7 @@ import androidx.compose.ui.unit.sp
 import com.autodoc.ui.AppColors
 import com.autodoc.ui.CarUi
 import com.autodoc.ui.DocumentSeverity
+import com.autodoc.ui.DocumentUi
 import com.autodoc.ui.severity
 
 private enum class DashboardFilter {
@@ -60,16 +62,12 @@ private enum class DashboardSort {
     DOCUMENTE
 }
 
-private val DeepBg = AppColors.DeepBg
-private val Navy = AppColors.Navy
-private val CardBg = AppColors.CardBg
-private val Border = AppColors.Border
-private val Gold = AppColors.Gold
-private val Danger = AppColors.Danger
-private val Warning = AppColors.Warning
-private val Ok = AppColors.Ok
-private val SoftText = AppColors.SoftText
-private val FieldBg = AppColors.FieldBg
+private data class DashboardStats(
+    val expiredCount: Int,
+    val soonCount: Int,
+    val okCount: Int,
+    val totalDocuments: Int
+)
 
 @Composable
 fun DashboardScreen(
@@ -116,51 +114,30 @@ fun DashboardScreen(
     val expandedCars = remember { mutableStateMapOf<Int, Boolean>() }
     val focusManager = LocalFocusManager.current
 
-    val allDocuments = cars.flatMap { it.documents }
-    val expiredCount = allDocuments.count { it.severity() == DocumentSeverity.EXPIRED }
-    val soonCount = allDocuments.count { it.severity() == DocumentSeverity.SOON }
-    val okCount = allDocuments.count { it.severity() == DocumentSeverity.OK }
-    val totalDocuments = allDocuments.size
+    val stats = remember(cars) {
+        calculateDashboardStats(cars)
+    }
 
-    val filteredCars = cars
-        .filter { car ->
-            val query = activeSearch.value.lowercase()
-
-            val matchesSearch =
-                query.isBlank() ||
-                        car.brand.lowercase().contains(query) ||
-                        car.model.lowercase().contains(query) ||
-                        car.plate.lowercase().contains(query) ||
-                        car.ownerName.lowercase().contains(query) ||
-                        car.ownerPhone.lowercase().contains(query) ||
-                        car.ownerEmail.lowercase().contains(query)
-
-            val matchesFilter = when (activeFilter.value) {
-                DashboardFilter.ALL -> true
-                DashboardFilter.EXPIRED -> car.documents.any { it.severity() == DocumentSeverity.EXPIRED }
-                DashboardFilter.SOON -> car.documents.any { it.severity() == DocumentSeverity.SOON }
-                DashboardFilter.OK -> car.documents.isNotEmpty() && car.documents.all { it.severity() == DocumentSeverity.OK }
-            }
-
-            matchesSearch && matchesFilter
+    val filteredCars = remember(
+        cars,
+        activeSearch.value,
+        activeFilter.value,
+        activeSort.value
+    ) {
+        derivedStateOf {
+            filterAndSortCars(
+                cars = cars,
+                searchQuery = activeSearch.value,
+                filter = activeFilter.value,
+                sort = activeSort.value
+            )
         }
-        .sortedWith(
-            when (activeSort.value) {
-                DashboardSort.MARCA ->
-                    compareBy<CarUi> { it.brand.lowercase() }.thenBy { it.model.lowercase() }
-
-                DashboardSort.DOCUMENTE ->
-                    compareByDescending { it.documents.size }
-
-                DashboardSort.URGENTE ->
-                    compareBy { car -> car.documents.minOfOrNull { it.daysLeft } ?: Int.MAX_VALUE }
-            }
-        )
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(DeepBg)
+            .background(AppColors.DeepBg)
             .verticalScroll(rememberScrollState())
             .imePadding()
             .padding(horizontal = 14.dp, vertical = 12.dp),
@@ -185,10 +162,10 @@ fun DashboardScreen(
         )
 
         SummaryCards(
-            expiredCount = expiredCount,
-            soonCount = soonCount,
-            okCount = okCount,
-            totalDocuments = totalDocuments,
+            expiredCount = stats.expiredCount,
+            soonCount = stats.soonCount,
+            okCount = stats.okCount,
+            totalDocuments = stats.totalDocuments,
             activeFilter = activeFilter.value,
             onFilterChange = { selectedFilter -> activeFilter.value = selectedFilter }
         )
@@ -200,7 +177,7 @@ fun DashboardScreen(
 
         Button(
             onClick = { showAddCar.value = !showAddCar.value },
-            colors = ButtonDefaults.buttonColors(containerColor = Gold),
+            colors = ButtonDefaults.buttonColors(containerColor = AppColors.Gold),
             shape = RoundedCornerShape(18.dp),
             modifier = Modifier
                 .fillMaxWidth()
@@ -208,7 +185,7 @@ fun DashboardScreen(
         ) {
             Text(
                 text = if (showAddCar.value) "Inchide formular" else "+ Adauga masina",
-                color = Navy,
+                color = AppColors.Navy,
                 fontWeight = FontWeight.Black,
                 fontSize = 16.sp,
                 maxLines = 1,
@@ -240,10 +217,10 @@ fun DashboardScreen(
             )
         }
 
-        if (filteredCars.isEmpty()) {
+        if (filteredCars.value.isEmpty()) {
             EmptyCarsCard()
         } else {
-            filteredCars.forEach { car ->
+            filteredCars.value.forEach { car ->
                 PremiumCarCard(
                     car = car,
                     expanded = expandedCars[car.id] == true,
@@ -260,6 +237,77 @@ fun DashboardScreen(
     }
 }
 
+private fun calculateDashboardStats(cars: List<CarUi>): DashboardStats {
+    val allDocuments = cars.flatMap { it.documents }
+
+    return DashboardStats(
+        expiredCount = allDocuments.count { it.severity() == DocumentSeverity.EXPIRED },
+        soonCount = allDocuments.count { it.severity() == DocumentSeverity.SOON },
+        okCount = allDocuments.count { it.severity() == DocumentSeverity.OK },
+        totalDocuments = allDocuments.size
+    )
+}
+
+private fun filterAndSortCars(
+    cars: List<CarUi>,
+    searchQuery: String,
+    filter: DashboardFilter,
+    sort: DashboardSort
+): List<CarUi> {
+    val query = searchQuery.trim().lowercase()
+
+    return cars
+        .filter { car ->
+            car.matchesSearch(query) && car.matchesFilter(filter)
+        }
+        .sortedWith(carComparator(sort))
+}
+
+private fun CarUi.matchesSearch(query: String): Boolean {
+    if (query.isBlank()) {
+        return true
+    }
+
+    return brand.lowercase().contains(query) ||
+            model.lowercase().contains(query) ||
+            plate.lowercase().contains(query) ||
+            ownerName.lowercase().contains(query) ||
+            ownerPhone.lowercase().contains(query) ||
+            ownerEmail.lowercase().contains(query)
+}
+
+private fun CarUi.matchesFilter(filter: DashboardFilter): Boolean {
+    return when (filter) {
+        DashboardFilter.ALL -> true
+        DashboardFilter.EXPIRED -> documents.any { it.severity() == DocumentSeverity.EXPIRED }
+        DashboardFilter.SOON -> documents.any { it.severity() == DocumentSeverity.SOON }
+        DashboardFilter.OK -> documents.isNotEmpty() &&
+                documents.all { it.severity() == DocumentSeverity.OK }
+    }
+}
+
+private fun carComparator(sort: DashboardSort): Comparator<CarUi> {
+    return when (sort) {
+        DashboardSort.MARCA ->
+            compareBy<CarUi> { it.brand.lowercase() }
+                .thenBy { it.model.lowercase() }
+
+        DashboardSort.DOCUMENTE ->
+            compareByDescending<CarUi> { it.documents.size }
+                .thenBy { it.brand.lowercase() }
+                .thenBy { it.model.lowercase() }
+
+        DashboardSort.URGENTE ->
+            compareBy<CarUi> { car -> car.documents.urgencyDaysLeft() }
+                .thenBy { it.brand.lowercase() }
+                .thenBy { it.model.lowercase() }
+    }
+}
+
+private fun List<DocumentUi>.urgencyDaysLeft(): Int {
+    return minOfOrNull { it.daysLeft } ?: Int.MAX_VALUE
+}
+
 @Composable
 private fun Header(carsCount: Int) {
     Row(
@@ -271,8 +319,8 @@ private fun Header(carsCount: Int) {
     ) {
         Card(
             modifier = Modifier.height(48.dp),
-            colors = CardDefaults.cardColors(containerColor = CardBg),
-            border = BorderStroke(1.dp, Border),
+            colors = CardDefaults.cardColors(containerColor = AppColors.CardBg),
+            border = BorderStroke(1.dp, AppColors.Border),
             shape = RoundedCornerShape(16.dp)
         ) {
             Row(
@@ -281,7 +329,7 @@ private fun Header(carsCount: Int) {
             ) {
                 Text(
                     text = "◆",
-                    color = Gold,
+                    color = AppColors.Gold,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -298,7 +346,7 @@ private fun Header(carsCount: Int) {
             )
             Text(
                 text = "$carsCount masini active",
-                color = Gold,
+                color = AppColors.Gold,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold
             )
@@ -329,7 +377,7 @@ private fun SearchBar(
                 .fillMaxWidth()
                 .height(56.dp)
                 .clip(RoundedCornerShape(28.dp))
-                .background(FieldBg)
+                .background(AppColors.FieldBg)
                 .border(BorderStroke(1.dp, Color.Transparent), RoundedCornerShape(28.dp)),
             decorationBox = { innerTextField ->
                 Row(
@@ -342,7 +390,7 @@ private fun SearchBar(
                     Icon(
                         imageVector = Icons.Outlined.Search,
                         contentDescription = null,
-                        tint = Gold,
+                        tint = AppColors.Gold,
                         modifier = Modifier.size(22.dp)
                     )
 
@@ -355,7 +403,7 @@ private fun SearchBar(
                         if (value.isBlank()) {
                             Text(
                                 text = "Cauta masina sau client",
-                                color = SoftText,
+                                color = AppColors.SoftText,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Medium,
                                 maxLines = 1,
@@ -374,7 +422,7 @@ private fun SearchBar(
         ) {
             Button(
                 onClick = onSearch,
-                colors = ButtonDefaults.buttonColors(containerColor = Gold),
+                colors = ButtonDefaults.buttonColors(containerColor = AppColors.Gold),
                 shape = RoundedCornerShape(15.dp),
                 modifier = Modifier
                     .weight(1f)
@@ -382,7 +430,7 @@ private fun SearchBar(
             ) {
                 Text(
                     text = "Cauta",
-                    color = Navy,
+                    color = AppColors.Navy,
                     fontWeight = FontWeight.Black,
                     fontSize = 15.sp
                 )
@@ -390,16 +438,16 @@ private fun SearchBar(
 
             Button(
                 onClick = onReset,
-                colors = ButtonDefaults.buttonColors(containerColor = CardBg),
+                colors = ButtonDefaults.buttonColors(containerColor = AppColors.CardBg),
                 shape = RoundedCornerShape(15.dp),
-                border = BorderStroke(1.dp, Border),
+                border = BorderStroke(1.dp, AppColors.Border),
                 modifier = Modifier
                     .weight(1f)
                     .height(44.dp)
             ) {
                 Text(
                     text = "Reseteaza",
-                    color = Gold,
+                    color = AppColors.Gold,
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp
                 )
@@ -424,7 +472,7 @@ private fun SummaryCards(
         SummaryCard(
             title = "Exp",
             value = expiredCount.toString(),
-            color = Danger,
+            color = AppColors.Danger,
             selected = activeFilter == DashboardFilter.EXPIRED,
             modifier = Modifier
                 .weight(1f)
@@ -433,7 +481,7 @@ private fun SummaryCards(
         SummaryCard(
             title = "Cur",
             value = soonCount.toString(),
-            color = Warning,
+            color = AppColors.Warning,
             selected = activeFilter == DashboardFilter.SOON,
             modifier = Modifier
                 .weight(1f)
@@ -442,7 +490,7 @@ private fun SummaryCards(
         SummaryCard(
             title = "OK",
             value = okCount.toString(),
-            color = Ok,
+            color = AppColors.Ok,
             selected = activeFilter == DashboardFilter.OK,
             modifier = Modifier
                 .weight(1f)
@@ -451,7 +499,7 @@ private fun SummaryCards(
         SummaryCard(
             title = "Toate",
             value = totalDocuments.toString(),
-            color = Gold,
+            color = AppColors.Gold,
             selected = activeFilter == DashboardFilter.ALL,
             modifier = Modifier
                 .weight(1f)
@@ -470,8 +518,13 @@ private fun SummaryCard(
 ) {
     Card(
         modifier = modifier.height(64.dp),
-        colors = CardDefaults.cardColors(containerColor = if (selected) Navy else CardBg),
-        border = BorderStroke(1.dp, if (selected) Gold else Border),
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) AppColors.Navy else AppColors.CardBg
+        ),
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (selected) AppColors.Gold else AppColors.Border
+        ),
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(
@@ -492,7 +545,7 @@ private fun SummaryCard(
 
             Text(
                 text = title,
-                color = SoftText,
+                color = AppColors.SoftText,
                 fontSize = 11.sp,
                 lineHeight = 13.sp,
                 fontWeight = FontWeight.Medium,
@@ -557,8 +610,10 @@ private fun SortButton(
         modifier = modifier
             .height(40.dp)
             .clickable { onClick() },
-        colors = CardDefaults.cardColors(containerColor = if (selected) Gold else Color.Transparent),
-        border = BorderStroke(1.dp, Gold),
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) AppColors.Gold else Color.Transparent
+        ),
+        border = BorderStroke(1.dp, AppColors.Gold),
         shape = RoundedCornerShape(50.dp)
     ) {
         Row(
@@ -570,7 +625,7 @@ private fun SortButton(
         ) {
             Text(
                 text = text,
-                color = if (selected) Navy else Gold,
+                color = if (selected) AppColors.Navy else AppColors.Gold,
                 fontWeight = if (selected) FontWeight.Black else FontWeight.Bold,
                 fontSize = 12.sp,
                 maxLines = 1,
@@ -586,8 +641,8 @@ private fun EmptyCarsCard() {
         modifier = Modifier
             .fillMaxWidth()
             .height(92.dp),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
-        border = BorderStroke(1.dp, Border),
+        colors = CardDefaults.cardColors(containerColor = AppColors.CardBg),
+        border = BorderStroke(1.dp, AppColors.Border),
         shape = RoundedCornerShape(22.dp)
     ) {
         Row(
@@ -599,7 +654,7 @@ private fun EmptyCarsCard() {
         ) {
             Text(
                 text = "▣",
-                color = SoftText,
+                color = AppColors.SoftText,
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold
             )

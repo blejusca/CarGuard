@@ -32,6 +32,14 @@ import com.autodoc.ui.parseDate
 import com.autodoc.ui.parseDateToMillis
 import java.time.LocalDate
 
+private val standardDocumentTypes = listOf(
+    "ITP",
+    "RCA",
+    "CASCO",
+    "Rovinieta",
+    "Revizie"
+)
+
 @Composable
 fun AddDocumentForm(
     carId: Int,
@@ -43,14 +51,29 @@ fun AddDocumentForm(
         reminderDaysBefore: Int
     ) -> Unit
 ) {
-    val availableTypes = listOf("ITP", "RCA", "CASCO", "Rovinieta", "Revizie")
-    val existingTypes = existingDocuments.map { normalizeDocumentType(it.type) }.toSet()
-    val firstAvailableType = availableTypes.firstOrNull { it !in existingTypes } ?: ""
+    val existingTypes = existingDocuments
+        .map { normalizeDocumentType(it.type) }
+        .toSet()
 
-    val type = remember(carId, existingTypes.size) { mutableStateOf(firstAvailableType) }
-    val expiryDateText = remember { mutableStateOf("") }
-    val reminderDays = remember { mutableStateOf("7") }
-    val errorMessage = remember(carId, existingTypes.size) { mutableStateOf("") }
+    val firstAvailableType = standardDocumentTypes
+        .firstOrNull { it !in existingTypes }
+        ?: ""
+
+    val type = remember(carId, existingTypes.size) {
+        mutableStateOf(firstAvailableType)
+    }
+
+    val expiryDateText = remember(carId, existingTypes.size) {
+        mutableStateOf("")
+    }
+
+    val reminderDays = remember(carId, existingTypes.size) {
+        mutableStateOf("7")
+    }
+
+    val errorMessage = remember(carId, existingTypes.size) {
+        mutableStateOf("")
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
@@ -80,30 +103,18 @@ fun AddDocumentForm(
             return@Column
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SmallDocButton("ITP", enabled = "ITP" !in existingTypes) {
-                type.value = "ITP"
+        DocumentTypeButtons(
+            existingTypes = existingTypes,
+            onTypeSelected = { selectedType ->
+                type.value = selectedType
             }
-            SmallDocButton("RCA", enabled = "RCA" !in existingTypes) {
-                type.value = "RCA"
-            }
-            SmallDocButton("CASCO", enabled = "CASCO" !in existingTypes) {
-                type.value = "CASCO"
-            }
-        }
-
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SmallDocButton("Rovinieta", enabled = "Rovinieta" !in existingTypes) {
-                type.value = "Rovinieta"
-            }
-            SmallDocButton("Revizie", enabled = "Revizie" !in existingTypes) {
-                type.value = "Revizie"
-            }
-        }
+        )
 
         DarkField(
             value = type.value,
-            onChange = { type.value = normalizeDocumentType(it) },
+            onChange = {
+                type.value = normalizeDocumentType(it)
+            },
             label = "Tip document"
         )
 
@@ -118,13 +129,17 @@ fun AddDocumentForm(
 
         DatePickerDarkField(
             value = expiryDateText.value,
-            onChange = { expiryDateText.value = it },
+            onChange = {
+                expiryDateText.value = it
+            },
             label = "Data expirarii"
         )
 
         DarkField(
             value = reminderDays.value,
-            onChange = { reminderDays.value = it.filter { c -> c.isDigit() } },
+            onChange = {
+                reminderDays.value = it.filter { c -> c.isDigit() }
+            },
             label = "Notificare cu cate zile inainte"
         )
 
@@ -132,6 +147,7 @@ fun AddDocumentForm(
             onClick = {
                 val cleanType = normalizeDocumentType(type.value)
                 val expiryMillis = parseDateToMillis(expiryDateText.value)
+
                 val validationError = validateDocumentInput(
                     type = cleanType,
                     expiryDateText = expiryDateText.value,
@@ -149,7 +165,7 @@ fun AddDocumentForm(
                         reminderDays.value.toIntOrNull()?.coerceIn(0, 365) ?: 7
                     )
 
-                    val nextType = availableTypes.firstOrNull {
+                    val nextType = standardDocumentTypes.firstOrNull {
                         it !in existingTypes && it != cleanType
                     } ?: ""
 
@@ -173,6 +189,33 @@ fun AddDocumentForm(
                 color = AppColors.Navy,
                 fontWeight = FontWeight.Bold
             )
+        }
+    }
+}
+
+@Composable
+private fun DocumentTypeButtons(
+    existingTypes: Set<String>,
+    onTypeSelected: (String) -> Unit
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        SmallDocButton("ITP", enabled = "ITP" !in existingTypes) {
+            onTypeSelected("ITP")
+        }
+        SmallDocButton("RCA", enabled = "RCA" !in existingTypes) {
+            onTypeSelected("RCA")
+        }
+        SmallDocButton("CASCO", enabled = "CASCO" !in existingTypes) {
+            onTypeSelected("CASCO")
+        }
+    }
+
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        SmallDocButton("Rovinieta", enabled = "Rovinieta" !in existingTypes) {
+            onTypeSelected("Rovinieta")
+        }
+        SmallDocButton("Revizie", enabled = "Revizie" !in existingTypes) {
+            onTypeSelected("Revizie")
         }
     }
 }
@@ -334,12 +377,11 @@ private fun validateDocumentInput(
 ): String {
     val errors = mutableListOf<String>()
     val cleanType = normalizeDocumentType(type)
-    val allowedTypes = setOf("ITP", "RCA", "CASCO", "Rovinieta", "Revizie")
     val reminderDays = reminderDaysText.trim().toIntOrNull()
 
     if (cleanType.isBlank()) {
         errors.add("Tipul documentului este obligatoriu.")
-    } else if (cleanType !in allowedTypes) {
+    } else if (cleanType !in standardDocumentTypes) {
         errors.add("Tipul documentului nu este valid. Alege ITP, RCA, CASCO, Rovinieta sau Revizie.")
     } else if (cleanType in existingTypes) {
         errors.add("Acest document exista deja pentru masina selectata.")
