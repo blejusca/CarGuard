@@ -1,9 +1,15 @@
 package com.autodoc.data.entity
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "cars")
+@Entity(
+    tableName = "cars",
+    indices = [
+        Index(value = ["plate"], unique = true)
+    ]
+)
 data class CarEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,

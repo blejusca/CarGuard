@@ -86,29 +86,47 @@ class AutoDocViewModel(
         }
 
         viewModelScope.launch {
-            val currentCarsCount = cars.value.size
-            val maxFreeCars = appPlanManager.getFreePlanMaxCars()
+            try {
+                val currentCarsCount = cars.value.size
+                val maxFreeCars = appPlanManager.getFreePlanMaxCars()
 
-            if (!appPlanManager.isProPlan() && currentCarsCount >= maxFreeCars) {
-                _isProPlan.value = false
-                _userMessage.value =
-                    "Ai atins limita planului Free: maximum $maxFreeCars masini. Activeaza Pro pentru masini nelimitate."
-                return@launch
-            }
+                val duplicatePlateExists = cars.value.any { existingCar ->
+                    existingCar.plate.trim().uppercase() == cleanPlate
+                }
 
-            carDao.insert(
-                CarEntity(
-                    brand = cleanBrand,
-                    model = cleanModel,
-                    plate = cleanPlate,
-                    year = year,
-                    engine = cleanEngine,
-                    ownerName = cleanOwnerName,
-                    ownerPhone = cleanOwnerPhone,
-                    ownerEmail = cleanOwnerEmail,
-                    ownerNotes = cleanOwnerNotes
+                if (duplicatePlateExists) {
+                    _userMessage.value =
+                        "Exista deja o masina cu numarul $cleanPlate. Verifica lista sau editeaza masina existenta."
+                    return@launch
+                }
+
+                if (!appPlanManager.isProPlan() && currentCarsCount >= maxFreeCars) {
+                    _isProPlan.value = false
+                    _userMessage.value =
+                        "Ai atins limita planului Free: maximum $maxFreeCars masini. Activeaza Pro pentru masini nelimitate."
+                    return@launch
+                }
+
+                carDao.insert(
+                    CarEntity(
+                        brand = cleanBrand,
+                        model = cleanModel,
+                        plate = cleanPlate,
+                        year = year,
+                        engine = cleanEngine,
+                        ownerName = cleanOwnerName,
+                        ownerPhone = cleanOwnerPhone,
+                        ownerEmail = cleanOwnerEmail,
+                        ownerNotes = cleanOwnerNotes
+                    )
                 )
-            )
+            } catch (e: Exception) {
+                _userMessage.value = if (isUniqueConstraintError(e)) {
+                    "Exista deja o masina cu numarul $cleanPlate. Numarul de inmatriculare trebuie sa fie unic."
+                } else {
+                    "Eroare la salvarea masinii. Incearca din nou."
+                }
+            }
         }
     }
 
@@ -143,18 +161,37 @@ class AutoDocViewModel(
         }
 
         viewModelScope.launch {
-            carDao.updateCar(
-                carId = carId,
-                brand = cleanBrand,
-                model = cleanModel,
-                plate = cleanPlate,
-                year = year,
-                engine = cleanEngine,
-                ownerName = cleanOwnerName,
-                ownerPhone = cleanOwnerPhone,
-                ownerEmail = cleanOwnerEmail,
-                ownerNotes = cleanOwnerNotes
-            )
+            try {
+                val duplicatePlateExists = cars.value.any { existingCar ->
+                    existingCar.id != carId &&
+                            existingCar.plate.trim().uppercase() == cleanPlate
+                }
+
+                if (duplicatePlateExists) {
+                    _userMessage.value =
+                        "Exista deja o alta masina cu numarul $cleanPlate. Numarul de inmatriculare trebuie sa fie unic."
+                    return@launch
+                }
+
+                carDao.updateCar(
+                    carId = carId,
+                    brand = cleanBrand,
+                    model = cleanModel,
+                    plate = cleanPlate,
+                    year = year,
+                    engine = cleanEngine,
+                    ownerName = cleanOwnerName,
+                    ownerPhone = cleanOwnerPhone,
+                    ownerEmail = cleanOwnerEmail,
+                    ownerNotes = cleanOwnerNotes
+                )
+            } catch (e: Exception) {
+                _userMessage.value = if (isUniqueConstraintError(e)) {
+                    "Exista deja o alta masina cu numarul $cleanPlate. Numarul de inmatriculare trebuie sa fie unic."
+                } else {
+                    "Eroare la actualizarea masinii. Incearca din nou."
+                }
+            }
         }
     }
 
@@ -309,5 +346,14 @@ class AutoDocViewModel(
         viewModelScope.launch {
             documentDao.markReminderNotified(documentId)
         }
+    }
+
+    private fun isUniqueConstraintError(error: Throwable): Boolean {
+        val message = error.message.orEmpty()
+
+        return message.contains("UNIQUE", ignoreCase = true) ||
+                message.contains("constraint", ignoreCase = true) ||
+                message.contains("index_cars_plate", ignoreCase = true) ||
+                message.contains("cars.plate", ignoreCase = true)
     }
 }

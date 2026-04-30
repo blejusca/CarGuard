@@ -164,7 +164,10 @@ object BackupManager {
                 parsedCars.forEach { parsedCar ->
                     val newId = db.carDao().insert(parsedCar.car)
 
-                    carIdMap[parsedCar.oldId] = newId
+                    parsedCar.oldIds.forEach { oldId ->
+                        carIdMap[oldId] = newId
+                    }
+
                     importedCarsByNewId[newId.toInt()] = parsedCar.car.copy(id = newId.toInt())
                 }
 
@@ -204,7 +207,7 @@ object BackupManager {
     }
 
     private fun parseCarsArray(carsArray: JSONArray): List<ParsedCar> {
-        val result = mutableListOf<ParsedCar>()
+        val carsByPlate = linkedMapOf<String, ParsedCar>()
 
         for (i in 0 until carsArray.length()) {
             val obj = carsArray.getJSONObject(i)
@@ -215,6 +218,13 @@ object BackupManager {
             val plate = obj.optString("plate", "").trim().uppercase()
 
             if (oldId <= 0 || brand.isBlank() || model.isBlank() || plate.isBlank()) {
+                continue
+            }
+
+            val existingParsedCar = carsByPlate[plate]
+
+            if (existingParsedCar != null) {
+                existingParsedCar.oldIds.add(oldId)
                 continue
             }
 
@@ -231,19 +241,18 @@ object BackupManager {
                 ownerNotes = obj.optString("ownerNotes", "").trim()
             )
 
-            result.add(
-                ParsedCar(
-                    oldId = oldId,
-                    car = car
-                )
+            carsByPlate[plate] = ParsedCar(
+                oldIds = mutableListOf(oldId),
+                car = car
             )
         }
 
-        return result
+        return carsByPlate.values.toList()
     }
 
     private fun parseDocumentsArray(documentsArray: JSONArray): List<ParsedDocument> {
         val result = mutableListOf<ParsedDocument>()
+        val documentKeys = mutableSetOf<String>()
 
         for (i in 0 until documentsArray.length()) {
             val obj = documentsArray.getJSONObject(i)
@@ -258,6 +267,14 @@ object BackupManager {
             if (oldCarId <= 0 || cleanType.isBlank() || expiryDate <= 0L) {
                 continue
             }
+
+            val uniqueDocumentKey = "$oldCarId|$cleanType"
+
+            if (documentKeys.contains(uniqueDocumentKey)) {
+                continue
+            }
+
+            documentKeys.add(uniqueDocumentKey)
 
             val document = DocumentEntity(
                 id = 0,
@@ -329,7 +346,7 @@ object BackupManager {
     }
 
     private data class ParsedCar(
-        val oldId: Int,
+        val oldIds: MutableList<Int>,
         val car: CarEntity
     )
 

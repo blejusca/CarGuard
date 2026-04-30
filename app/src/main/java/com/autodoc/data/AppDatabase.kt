@@ -9,7 +9,7 @@ import com.autodoc.data.entity.DocumentEntity
 
 @Database(
     entities = [CarEntity::class, DocumentEntity::class],
-    version = 3, // IMPORTANT: crescut de la 1 la 2
+    version = 4, // IMPORTANT: crescut de la 1 la 2
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
