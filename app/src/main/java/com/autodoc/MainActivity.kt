@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
@@ -50,6 +51,7 @@ import com.autodoc.ui.screens.DocumentsScreen
 import com.autodoc.ui.screens.SettingsScreen
 import com.autodoc.ui.theme.AutoDocTheme
 import com.autodoc.viewmodel.AutoDocViewModel
+import com.autodoc.viewmodel.AutoDocViewModelFactory
 import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.LocalDateTime
@@ -89,12 +91,18 @@ class MainActivity : ComponentActivity() {
         scheduleDailyDocumentCheck()
 
         val database = DatabaseProvider.getDatabase(this)
+        val scheduler = AutoDocNotificationScheduler(this)
 
-        viewModel = AutoDocViewModel(
+        val factory = AutoDocViewModelFactory(
             carDao = database.carDao(),
             documentDao = database.documentDao(),
-            scheduler = AutoDocNotificationScheduler(this)
+            scheduler = scheduler
         )
+
+        viewModel = ViewModelProvider(
+            this,
+            factory
+        )[AutoDocViewModel::class.java]
 
         setContent {
             AutoDocTheme(dynamicColor = false) {

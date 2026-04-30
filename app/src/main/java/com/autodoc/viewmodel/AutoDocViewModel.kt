@@ -141,51 +141,49 @@ class AutoDocViewModel(
     fun addDocument(
         carId: Int,
         type: String,
-        expiryDateMillis: Long,
-        reminderDaysBefore: Int = 7
+        expiry: Long,
+        daysBefore: Int
     ) {
-        val cleanType = normalizeDocumentType(type)
-
-        if (carId <= 0 || cleanType.isBlank() || expiryDateMillis <= 0L) {
-            return
-        }
-
-        val car = cars.value.firstOrNull { it.id == carId }
-
-        val documentAlreadyExists = car?.documents?.any { document ->
-            normalizeDocumentType(document.type) == cleanType
-        } == true
-
-        if (documentAlreadyExists) {
-            return
-        }
-
-        val safeReminderDays = reminderDaysBefore.coerceAtLeast(0)
-
         viewModelScope.launch {
+
+            val cleanType = type.trim()
+
+            // 🔴 VERIFICARE CORECTĂ DIRECT ÎN DB
+            val existing = documentDao.getDocumentByCarIdAndType(carId, cleanType)
+
+            if (existing != null) {
+                // OPTIONAL: aici putem pune UI event mai târziu
+                return@launch
+            }
+
             val documentId = documentDao.insert(
                 DocumentEntity(
+                    id = 0,
                     carId = carId,
                     type = cleanType,
-                    expiryDate = expiryDateMillis,
-                    reminderDaysBefore = safeReminderDays
+                    expiryDate = expiry,
+                    reminderDaysBefore = daysBefore,
+                    notifiedExpired = false,
+                    notifiedToday = false,
+                    notifiedTomorrow = false,
+                    notifiedReminder = false
                 )
-            ).toInt()
+            )
 
-            val freshCar = cars.value.firstOrNull { it.id == carId }
+            val car = carDao.getCarById(carId)
 
-            val carName = if (freshCar != null) {
-                "${freshCar.brand} ${freshCar.model} - ${freshCar.plate}"
+            val carName = if (car != null) {
+                "${car.brand} ${car.model} - ${car.plate}"
             } else {
-                "Masina necunoscuta"
+                "Masina"
             }
 
             scheduler.schedule(
-                documentId = documentId,
+                documentId = documentId.toInt(),
                 type = cleanType,
                 carName = carName,
-                expiry = expiryDateMillis,
-                daysBefore = safeReminderDays
+                expiry = expiry,
+                daysBefore = daysBefore
             )
         }
     }

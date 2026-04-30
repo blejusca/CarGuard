@@ -27,6 +27,11 @@ interface DocumentDao {
     @Query("DELETE FROM documents WHERE id = :documentId")
     suspend fun deleteById(documentId: Int)
 
+    @Query("SELECT * FROM documents WHERE carId = :carId AND type = :type LIMIT 1")
+    suspend fun getDocumentByCarIdAndType(
+        carId: Int,
+        type: String
+    ): DocumentEntity?
     @Query(
         """
         UPDATE documents 
