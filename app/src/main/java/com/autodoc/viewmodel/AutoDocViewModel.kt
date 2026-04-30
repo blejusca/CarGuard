@@ -144,31 +144,16 @@ class AutoDocViewModel(
         expiry: Long,
         daysBefore: Int
     ) {
+        if (carId <= 0 || expiry <= 0L) {
+            return
+        }
+
         viewModelScope.launch {
+            val cleanType = normalizeDocumentType(type)
 
-            val cleanType = type.trim()
-
-            // 🔴 VERIFICARE CORECTĂ DIRECT ÎN DB
-            val existing = documentDao.getDocumentByCarIdAndType(carId, cleanType)
-
-            if (existing != null) {
-                // OPTIONAL: aici putem pune UI event mai târziu
+            if (cleanType.isBlank()) {
                 return@launch
             }
-
-            val documentId = documentDao.insert(
-                DocumentEntity(
-                    id = 0,
-                    carId = carId,
-                    type = cleanType,
-                    expiryDate = expiry,
-                    reminderDaysBefore = daysBefore,
-                    notifiedExpired = false,
-                    notifiedToday = false,
-                    notifiedTomorrow = false,
-                    notifiedReminder = false
-                )
-            )
 
             val car = carDao.getCarById(carId)
 
@@ -178,12 +163,52 @@ class AutoDocViewModel(
                 "Masina"
             }
 
+            val safeDaysBefore = daysBefore.coerceAtLeast(0)
+
+            val existing = documentDao.getDocumentByCarIdAndType(
+                carId = carId,
+                type = cleanType
+            )
+
+            if (existing != null) {
+                documentDao.updateExpiryDate(
+                    documentId = existing.id,
+                    expiryDateMillis = expiry
+                )
+
+                scheduler.cancel(existing.id)
+
+                scheduler.schedule(
+                    documentId = existing.id,
+                    type = cleanType,
+                    carName = carName,
+                    expiry = expiry,
+                    daysBefore = safeDaysBefore
+                )
+
+                return@launch
+            }
+
+            val documentId = documentDao.insert(
+                DocumentEntity(
+                    id = 0,
+                    carId = carId,
+                    type = cleanType,
+                    expiryDate = expiry,
+                    reminderDaysBefore = safeDaysBefore,
+                    notifiedExpired = false,
+                    notifiedToday = false,
+                    notifiedTomorrow = false,
+                    notifiedReminder = false
+                )
+            )
+
             scheduler.schedule(
                 documentId = documentId.toInt(),
                 type = cleanType,
                 carName = carName,
                 expiry = expiry,
-                daysBefore = daysBefore
+                daysBefore = safeDaysBefore
             )
         }
     }
