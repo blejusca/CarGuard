@@ -1,8 +1,5 @@
 package com.autodoc.ui.screens
 
-import android.content.Context
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -52,12 +49,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.autodoc.ui.AppColors
@@ -70,12 +65,7 @@ import com.autodoc.ui.normalizeDocumentType
 import com.autodoc.ui.parseDate
 import com.autodoc.ui.parseDateToMillis
 import com.autodoc.ui.severity
-import com.autodoc.ui.shouldNotifyClient
 import java.time.LocalDate
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import kotlin.math.abs
 
 private enum class DashboardFilter {
     ALL,
@@ -83,6 +73,13 @@ private enum class DashboardFilter {
     SOON,
     OK
 }
+
+private enum class DashboardSort {
+    URGENTE,
+    MARCA,
+    DOCUMENTE
+}
+
 private val DeepBg = AppColors.DeepBg
 private val Navy = AppColors.Navy
 private val CardBg = AppColors.CardBg
@@ -94,11 +91,6 @@ private val Ok = AppColors.Ok
 private val MutedText = AppColors.MutedText
 private val SoftText = AppColors.SoftText
 private val FieldBg = AppColors.FieldBg
-private enum class DashboardSort {
-    URGENTE,
-    MARCA,
-    DOCUMENTE
-}
 
 @Composable
 fun DashboardScreen(
@@ -175,9 +167,14 @@ fun DashboardScreen(
         }
         .sortedWith(
             when (activeSort.value) {
-                DashboardSort.MARCA -> compareBy<CarUi> { it.brand.lowercase() }.thenBy { it.model.lowercase() }
-                DashboardSort.DOCUMENTE -> compareByDescending<CarUi> { it.documents.size }
-                DashboardSort.URGENTE -> compareBy { car -> car.documents.minOfOrNull { it.daysLeft } ?: Int.MAX_VALUE }
+                DashboardSort.MARCA ->
+                    compareBy<CarUi> { it.brand.lowercase() }.thenBy { it.model.lowercase() }
+
+                DashboardSort.DOCUMENTE ->
+                    compareByDescending { it.documents.size }
+
+                DashboardSort.URGENTE ->
+                    compareBy { car -> car.documents.minOfOrNull { it.daysLeft } ?: Int.MAX_VALUE }
             }
         )
 
@@ -243,7 +240,17 @@ fun DashboardScreen(
         if (showAddCar.value) {
             AddCarForm(
                 onAddCar = { brand, model, plate, year, engine, ownerName, ownerPhone, ownerEmail, ownerNotes ->
-                    onAddCar(brand, model, plate, year, engine, ownerName, ownerPhone, ownerEmail, ownerNotes)
+                    onAddCar(
+                        brand,
+                        model,
+                        plate,
+                        year,
+                        engine,
+                        ownerName,
+                        ownerPhone,
+                        ownerEmail,
+                        ownerNotes
+                    )
                     searchInput.value = ""
                     activeSearch.value = ""
                     activeFilter.value = DashboardFilter.ALL
@@ -293,7 +300,12 @@ private fun Header(carsCount: Int) {
                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = "◆", color = Gold, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    text = "◆",
+                    color = Gold,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
 
@@ -389,7 +401,12 @@ private fun SearchBar(
                     .weight(1f)
                     .height(44.dp)
             ) {
-                Text("Cauta", color = Navy, fontWeight = FontWeight.Black, fontSize = 15.sp)
+                Text(
+                    text = "Cauta",
+                    color = Navy,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 15.sp
+                )
             }
 
             Button(
@@ -401,7 +418,12 @@ private fun SearchBar(
                     .weight(1f)
                     .height(44.dp)
             ) {
-                Text("Reseteaza", color = Gold, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Text(
+                    text = "Reseteaza",
+                    color = Gold,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                )
             }
         }
     }
@@ -416,11 +438,46 @@ private fun SummaryCards(
     activeFilter: DashboardFilter,
     onFilterChange: (DashboardFilter) -> Unit
 ) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        SummaryCard("Exp", expiredCount.toString(), Danger, activeFilter == DashboardFilter.EXPIRED, Modifier.weight(1f).clickable { onFilterChange(DashboardFilter.EXPIRED) })
-        SummaryCard("Cur", soonCount.toString(), Warning, activeFilter == DashboardFilter.SOON, Modifier.weight(1f).clickable { onFilterChange(DashboardFilter.SOON) })
-        SummaryCard("OK", okCount.toString(), Ok, activeFilter == DashboardFilter.OK, Modifier.weight(1f).clickable { onFilterChange(DashboardFilter.OK) })
-        SummaryCard("Toate", totalDocuments.toString(), Gold, activeFilter == DashboardFilter.ALL, Modifier.weight(1f).clickable { onFilterChange(DashboardFilter.ALL) })
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        SummaryCard(
+            title = "Exp",
+            value = expiredCount.toString(),
+            color = Danger,
+            selected = activeFilter == DashboardFilter.EXPIRED,
+            modifier = Modifier
+                .weight(1f)
+                .clickable { onFilterChange(DashboardFilter.EXPIRED) }
+        )
+        SummaryCard(
+            title = "Cur",
+            value = soonCount.toString(),
+            color = Warning,
+            selected = activeFilter == DashboardFilter.SOON,
+            modifier = Modifier
+                .weight(1f)
+                .clickable { onFilterChange(DashboardFilter.SOON) }
+        )
+        SummaryCard(
+            title = "OK",
+            value = okCount.toString(),
+            color = Ok,
+            selected = activeFilter == DashboardFilter.OK,
+            modifier = Modifier
+                .weight(1f)
+                .clickable { onFilterChange(DashboardFilter.OK) }
+        )
+        SummaryCard(
+            title = "Toate",
+            value = totalDocuments.toString(),
+            color = Gold,
+            selected = activeFilter == DashboardFilter.ALL,
+            modifier = Modifier
+                .weight(1f)
+                .clickable { onFilterChange(DashboardFilter.ALL) }
+        )
     }
 }
 
@@ -433,7 +490,7 @@ private fun SummaryCard(
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.height(64.dp), // 🔥 marit de la 58dp
+        modifier = modifier.height(64.dp),
         colors = CardDefaults.cardColors(containerColor = if (selected) Navy else CardBg),
         border = BorderStroke(1.dp, if (selected) Gold else Border),
         shape = RoundedCornerShape(16.dp)
@@ -441,16 +498,16 @@ private fun SummaryCard(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 6.dp, vertical = 10.dp), // 🔥 padding corect
+                .padding(horizontal = 6.dp, vertical = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Text(
                 text = value,
                 color = color,
-                fontSize = 18.sp, // 🔥 redus de la 19
-                lineHeight = 20.sp, // 🔥 important pt clipping
-                fontWeight = FontWeight.Bold, // 🔥 nu Black
+                fontSize = 18.sp,
+                lineHeight = 20.sp,
+                fontWeight = FontWeight.Bold,
                 maxLines = 1
             )
 
@@ -472,11 +529,40 @@ private fun SortButtons(
     onSortChange: (DashboardSort) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(text = "Sortare masini", color = Color.White, fontWeight = FontWeight.Black, fontSize = 18.sp)
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SortButton("Prioritate", activeSort == DashboardSort.URGENTE, Modifier.weight(1f)) { onSortChange(DashboardSort.URGENTE) }
-            SortButton("Marca", activeSort == DashboardSort.MARCA, Modifier.weight(1f)) { onSortChange(DashboardSort.MARCA) }
-            SortButton("Nr. doc", activeSort == DashboardSort.DOCUMENTE, Modifier.weight(1f)) { onSortChange(DashboardSort.DOCUMENTE) }
+        Text(
+            text = "Sortare masini",
+            color = Color.White,
+            fontWeight = FontWeight.Black,
+            fontSize = 18.sp
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            SortButton(
+                text = "Prioritate",
+                selected = activeSort == DashboardSort.URGENTE,
+                modifier = Modifier.weight(1f)
+            ) {
+                onSortChange(DashboardSort.URGENTE)
+            }
+
+            SortButton(
+                text = "Marca",
+                selected = activeSort == DashboardSort.MARCA,
+                modifier = Modifier.weight(1f)
+            ) {
+                onSortChange(DashboardSort.MARCA)
+            }
+
+            SortButton(
+                text = "Nr. doc",
+                selected = activeSort == DashboardSort.DOCUMENTE,
+                modifier = Modifier.weight(1f)
+            ) {
+                onSortChange(DashboardSort.DOCUMENTE)
+            }
         }
     }
 }
@@ -532,7 +618,12 @@ private fun EmptyCarsCard() {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Text(text = "▣", color = SoftText, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            Text(
+                text = "▣",
+                color = SoftText,
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold
+            )
             Text(
                 text = "Nu exista masini pentru filtrul selectat.",
                 color = Color.White,
@@ -584,7 +675,12 @@ private fun AddCarForm(
         )
 
         if (errorMessage.value.isNotBlank()) {
-            Text(text = errorMessage.value, color = Danger, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            Text(
+                text = errorMessage.value,
+                color = Danger,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp
+            )
         }
 
         FormSectionTitle("Date masina")
@@ -604,7 +700,17 @@ private fun AddCarForm(
 
         Button(
             onClick = {
-                val validationError = validateCarInput(brand.value, model.value, plate.value, year.value, engine.value, ownerName.value, ownerPhone.value, ownerEmail.value)
+                val validationError = validateCarInput(
+                    brand = brand.value,
+                    model = model.value,
+                    plate = plate.value,
+                    yearText = year.value,
+                    engine = engine.value,
+                    ownerName = ownerName.value,
+                    ownerPhone = ownerPhone.value,
+                    ownerEmail = ownerEmail.value
+                )
+
                 errorMessage.value = validationError
 
                 if (validationError.isBlank()) {
@@ -619,6 +725,7 @@ private fun AddCarForm(
                         ownerEmail.value.trim(),
                         ownerNotes.value.trim()
                     )
+
                     brand.value = ""
                     model.value = ""
                     plate.value = ""
@@ -637,7 +744,12 @@ private fun AddCarForm(
                 .fillMaxWidth()
                 .height(48.dp)
         ) {
-            Text("Salveaza masina", color = Navy, fontWeight = FontWeight.Black, fontSize = 15.sp)
+            Text(
+                text = "Salveaza masina",
+                color = Navy,
+                fontWeight = FontWeight.Black,
+                fontSize = 15.sp
+            )
         }
     }
 }
@@ -687,10 +799,20 @@ private fun EditCarForm(
     val errorMessage = remember(car.id) { mutableStateOf("") }
 
     PremiumLightCard {
-        Text(text = "Editare masina / client", fontWeight = FontWeight.Black, color = Color.White, fontSize = 20.sp)
+        Text(
+            text = "Editare masina / client",
+            fontWeight = FontWeight.Black,
+            color = Color.White,
+            fontSize = 20.sp
+        )
 
         if (errorMessage.value.isNotBlank()) {
-            Text(text = errorMessage.value, color = Danger, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Text(
+                text = errorMessage.value,
+                color = Danger,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
+            )
         }
 
         LightField(brand.value, { brand.value = it }, "Marca")
@@ -699,17 +821,35 @@ private fun EditCarForm(
         LightField(year.value, { year.value = it.filter { c -> c.isDigit() } }, "An fabricatie")
         LightField(engine.value, { engine.value = it }, "Motorizare")
 
-        Text(text = "Date client / proprietar", color = Gold, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        Text(
+            text = "Date client / proprietar",
+            color = Gold,
+            fontWeight = FontWeight.Bold,
+            fontSize = 16.sp
+        )
 
         LightField(ownerName.value, { ownerName.value = it }, "Nume client / proprietar")
         LightField(ownerPhone.value, { ownerPhone.value = it }, "Telefon client")
         LightField(ownerEmail.value, { ownerEmail.value = it }, "Email client")
         LightField(ownerNotes.value, { ownerNotes.value = it }, "Observatii client")
 
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
             Button(
                 onClick = {
-                    val validationError = validateCarInput(brand.value, model.value, plate.value, year.value, engine.value, ownerName.value, ownerPhone.value, ownerEmail.value)
+                    val validationError = validateCarInput(
+                        brand = brand.value,
+                        model = model.value,
+                        plate = plate.value,
+                        yearText = year.value,
+                        engine = engine.value,
+                        ownerName = ownerName.value,
+                        ownerPhone = ownerPhone.value,
+                        ownerEmail = ownerEmail.value
+                    )
+
                     errorMessage.value = validationError
 
                     if (validationError.isBlank()) {
@@ -730,7 +870,11 @@ private fun EditCarForm(
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.weight(1f)
             ) {
-                Text("Salveaza", color = Color.White, fontWeight = FontWeight.Bold)
+                Text(
+                    text = "Salveaza",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
             }
 
             Button(
@@ -740,7 +884,11 @@ private fun EditCarForm(
                 border = BorderStroke(1.dp, Border),
                 modifier = Modifier.weight(1f)
             ) {
-                Text("Anuleaza", color = Gold, fontWeight = FontWeight.Bold)
+                Text(
+                    text = "Anuleaza",
+                    color = Gold,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
@@ -786,7 +934,9 @@ private fun PremiumCarCard(
                 showDeleteCarDialog.value = false
                 onDeleteCar(car.id)
             },
-            onDismiss = { showDeleteCarDialog.value = false }
+            onDismiss = {
+                showDeleteCarDialog.value = false
+            }
         )
     }
 
@@ -796,22 +946,70 @@ private fun PremiumCarCard(
         border = BorderStroke(1.dp, Border),
         shape = RoundedCornerShape(24.dp)
     ) {
-        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(text = "${car.brand} ${car.model}", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Black)
-            Text(text = car.plate, color = MutedText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            Text(text = "${car.year} • ${car.engine.ifBlank { "Motorizare nespecificata" }}", color = SoftText, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = "${car.brand} ${car.model}",
+                color = Color.White,
+                fontSize = 23.sp,
+                fontWeight = FontWeight.Black
+            )
+            Text(
+                text = car.plate,
+                color = MutedText,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "${car.year} • ${car.engine.ifBlank { "Motorizare nespecificata" }}",
+                color = SoftText,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium
+            )
 
             if (car.ownerName.isNotBlank() || car.ownerPhone.isNotBlank() || car.ownerEmail.isNotBlank()) {
                 Divider(color = Border)
-                Text(text = "Client: ${car.ownerName.ifBlank { "Nespecificat" }}", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                if (car.ownerPhone.isNotBlank()) Text(text = "Telefon: ${car.ownerPhone}", color = MutedText, fontSize = 14.sp)
-                if (car.ownerEmail.isNotBlank()) Text(text = "Email: ${car.ownerEmail}", color = MutedText, fontSize = 14.sp)
+
+                Text(
+                    text = "Client: ${car.ownerName.ifBlank { "Nespecificat" }}",
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                if (car.ownerPhone.isNotBlank()) {
+                    Text(
+                        text = "Telefon: ${car.ownerPhone}",
+                        color = MutedText,
+                        fontSize = 14.sp
+                    )
+                }
+
+                if (car.ownerEmail.isNotBlank()) {
+                    Text(
+                        text = "Email: ${car.ownerEmail}",
+                        color = MutedText,
+                        fontSize = 14.sp
+                    )
+                }
             }
 
-            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(text = "${car.documents.size} ${if (car.documents.size == 1) "document" else "documente"}", color = Gold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
                 Text(
-                    text = mostUrgent?.let { "${it.type}: ${documentStatusText(it.daysLeft)}" } ?: "Fara documente",
+                    text = "${car.documents.size} ${if (car.documents.size == 1) "document" else "documente"}",
+                    color = Gold,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = mostUrgent?.let {
+                        "${it.type}: ${documentStatusText(it.daysLeft)}"
+                    } ?: "Fara documente",
                     color = mostUrgent?.let { statusColor(it) } ?: MutedText,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
@@ -819,7 +1017,10 @@ private fun PremiumCarCard(
                 )
             }
 
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 Button(
                     onClick = { showEditCar.value = !showEditCar.value },
                     colors = ButtonDefaults.buttonColors(containerColor = Gold),
@@ -828,7 +1029,14 @@ private fun PremiumCarCard(
                         .weight(1f)
                         .height(44.dp)
                 ) {
-                    Text(if (showEditCar.value) "Inchide" else "Editeaza", color = Navy, fontWeight = FontWeight.Black, fontSize = 14.sp, maxLines = 1, softWrap = false)
+                    Text(
+                        text = if (showEditCar.value) "Inchide" else "Editeaza",
+                        color = Navy,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 14.sp,
+                        maxLines = 1,
+                        softWrap = false
+                    )
                 }
 
                 Button(
@@ -839,16 +1047,36 @@ private fun PremiumCarCard(
                         .weight(1f)
                         .height(44.dp)
                 ) {
-                    Text("Export PDF", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1, softWrap = false)
+                    Text(
+                        text = "Export PDF",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        maxLines = 1,
+                        softWrap = false
+                    )
                 }
             }
 
             if (showEditCar.value) {
                 EditCarForm(
                     car = car,
-                    onCancel = { showEditCar.value = false },
+                    onCancel = {
+                        showEditCar.value = false
+                    },
                     onSave = { brand, model, plate, year, engine, ownerName, ownerPhone, ownerEmail, ownerNotes ->
-                        onUpdateCar(car.id, brand, model, plate, year, engine, ownerName, ownerPhone, ownerEmail, ownerNotes)
+                        onUpdateCar(
+                            car.id,
+                            brand,
+                            model,
+                            plate,
+                            year,
+                            engine,
+                            ownerName,
+                            ownerPhone,
+                            ownerEmail,
+                            ownerNotes
+                        )
                         showEditCar.value = false
                     }
                 )
@@ -860,139 +1088,67 @@ private fun PremiumCarCard(
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(if (expanded) "Ascunde documente" else "Arata documente", color = Color.White, fontWeight = FontWeight.Bold)
+                Text(
+                    text = if (expanded) "Ascunde documente" else "Arata documente",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
             }
 
             if (expanded) {
                 Divider(color = Border)
 
                 if (car.ownerNotes.isNotBlank()) {
-                    Text(text = "Observatii client:", color = Gold, fontWeight = FontWeight.Bold)
-                    Text(text = car.ownerNotes, color = MutedText)
+                    Text(
+                        text = "Observatii client:",
+                        color = Gold,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = car.ownerNotes,
+                        color = MutedText
+                    )
                     Divider(color = Border)
                 }
 
                 if (car.documents.isEmpty()) {
-                    Text(text = "Nu exista documente adaugate.", color = Color.White)
+                    Text(
+                        text = "Nu exista documente adaugate.",
+                        color = Color.White
+                    )
                 } else {
                     car.documents.forEach { document ->
-                        DocumentRow(car, document, onDeleteDocument, onUpdateDocumentExpiry)
+                        DocumentRow(
+                            car = car,
+                            document = document,
+                            onDeleteDocument = onDeleteDocument,
+                            onUpdateDocumentExpiry = onUpdateDocumentExpiry
+                        )
                     }
                 }
 
-                AddDocumentForm(car.id, car.documents, onAddDocument)
+                AddDocumentForm(
+                    carId = car.id,
+                    existingDocuments = car.documents,
+                    onAddDocument = onAddDocument
+                )
 
                 Divider(color = Border)
 
                 Button(
-                    onClick = { showDeleteCarDialog.value = true },
+                    onClick = {
+                        showDeleteCarDialog.value = true
+                    },
                     colors = ButtonDefaults.buttonColors(containerColor = Danger),
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Sterge masina", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = "Sterge masina",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun DocumentRow(
-    car: CarUi,
-    document: DocumentUi,
-    onDeleteDocument: (documentId: Int) -> Unit,
-    onUpdateDocumentExpiry: (documentId: Int, expiryDateMillis: Long) -> Unit
-) {
-    val context = LocalContext.current
-    val showEdit = remember { mutableStateOf(false) }
-    val newDate = remember { mutableStateOf("") }
-    val editDateError = remember { mutableStateOf("") }
-    val showDeleteDocumentDialog = remember { mutableStateOf(false) }
-    val shouldNotify = document.shouldNotifyClient()
-    val hasPhone = car.ownerPhone.isNotBlank()
-    val canNotify = shouldNotify && hasPhone
-
-    if (showDeleteDocumentDialog.value) {
-        ConfirmDeleteDialog(
-            title = "Stergere document",
-            message = "Sigur vrei sa stergi documentul ${document.type}?",
-            onConfirm = {
-                showDeleteDocumentDialog.value = false
-                onDeleteDocument(document.id)
-            },
-            onDismiss = { showDeleteDocumentDialog.value = false }
-        )
-    }
-
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(text = "${document.type} - ${documentStatusText(document.daysLeft)}", color = statusColor(document), fontWeight = FontWeight.Bold)
-        Text(text = "Data expirarii: ${formatDate(document.expiryDateMillis)}", color = MutedText)
-
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(
-                onClick = {
-                    showEdit.value = !showEdit.value
-                    editDateError.value = ""
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = Gold),
-                shape = RoundedCornerShape(14.dp)
-            ) {
-                Text("Editeaza", color = Navy, fontWeight = FontWeight.Bold)
-            }
-
-            Button(
-                onClick = { showDeleteDocumentDialog.value = true },
-                colors = ButtonDefaults.buttonColors(containerColor = Danger),
-                shape = RoundedCornerShape(14.dp)
-            ) {
-                Text("Sterge", color = Color.White, fontWeight = FontWeight.Bold)
-            }
-        }
-
-        Button(
-            onClick = { sendWhatsAppNotification(context, car, document) },
-            enabled = canNotify,
-            colors = ButtonDefaults.buttonColors(containerColor = if (canNotify) Ok else Color(0xFF6B7280), disabledContainerColor = Color(0xFF6B7280)),
-            shape = RoundedCornerShape(14.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                text = when {
-                    !shouldNotify -> "Nu necesita notificare"
-                    !hasPhone -> "Telefon client lipsa"
-                    else -> "Notifica WhatsApp"
-                },
-                color = Color.White,
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-        if (showEdit.value) {
-            if (editDateError.value.isNotBlank()) {
-                Text(text = editDateError.value, color = Danger, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-            }
-
-            DatePickerDarkField(value = newDate.value, onChange = { newDate.value = it }, label = "Data noua")
-
-            Button(
-                onClick = {
-                    val validationError = validateExpiryDate(newDate.value)
-                    val millis = parseDateToMillis(newDate.value)
-                    editDateError.value = validationError
-
-                    if (validationError.isBlank() && millis != null) {
-                        onUpdateDocumentExpiry(document.id, millis)
-                        newDate.value = ""
-                        editDateError.value = ""
-                        showEdit.value = false
-                    }
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = Ok),
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Salveaza data noua", color = Color.White, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -1018,10 +1174,20 @@ private fun AddDocumentForm(
     val errorMessage = remember(carId, existingTypes.size) { mutableStateOf("") }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(text = "Document nou", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+        Text(
+            text = "Document nou",
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.titleMedium
+        )
 
         if (errorMessage.value.isNotBlank()) {
-            Text(text = errorMessage.value, color = Danger, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Text(
+                text = errorMessage.value,
+                color = Danger,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
+            )
         }
 
         if (firstAvailableType.isBlank()) {
@@ -1036,61 +1202,122 @@ private fun AddDocumentForm(
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SmallDocButton("ITP", enabled = "ITP" !in existingTypes) { type.value = "ITP" }
-            SmallDocButton("RCA", enabled = "RCA" !in existingTypes) { type.value = "RCA" }
-            SmallDocButton("CASCO", enabled = "CASCO" !in existingTypes) { type.value = "CASCO" }
+            SmallDocButton("ITP", enabled = "ITP" !in existingTypes) {
+                type.value = "ITP"
+            }
+            SmallDocButton("RCA", enabled = "RCA" !in existingTypes) {
+                type.value = "RCA"
+            }
+            SmallDocButton("CASCO", enabled = "CASCO" !in existingTypes) {
+                type.value = "CASCO"
+            }
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SmallDocButton("Rovinieta", enabled = "Rovinieta" !in existingTypes) { type.value = "Rovinieta" }
-            SmallDocButton("Revizie", enabled = "Revizie" !in existingTypes) { type.value = "Revizie" }
+            SmallDocButton("Rovinieta", enabled = "Rovinieta" !in existingTypes) {
+                type.value = "Rovinieta"
+            }
+            SmallDocButton("Revizie", enabled = "Revizie" !in existingTypes) {
+                type.value = "Revizie"
+            }
         }
 
-        DarkField(type.value, { type.value = normalizeDocumentType(it) }, "Tip document")
+        DarkField(
+            value = type.value,
+            onChange = { type.value = normalizeDocumentType(it) },
+            label = "Tip document"
+        )
 
         if (normalizeDocumentType(type.value) in existingTypes) {
-            Text(text = "Acest document exista deja pentru masina selectata. Editeaza documentul existent.", color = Warning, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Text(
+                text = "Acest document exista deja pentru masina selectata. Editeaza documentul existent.",
+                color = Warning,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
+            )
         }
 
-        DatePickerDarkField(value = expiryDateText.value, onChange = { expiryDateText.value = it }, label = "Data expirarii")
+        DatePickerDarkField(
+            value = expiryDateText.value,
+            onChange = { expiryDateText.value = it },
+            label = "Data expirarii"
+        )
 
-        DarkField(reminderDays.value, { reminderDays.value = it.filter { c -> c.isDigit() } }, "Notificare cu cate zile inainte")
+        DarkField(
+            value = reminderDays.value,
+            onChange = { reminderDays.value = it.filter { c -> c.isDigit() } },
+            label = "Notificare cu cate zile inainte"
+        )
 
         Button(
             onClick = {
                 val cleanType = normalizeDocumentType(type.value)
                 val expiryMillis = parseDateToMillis(expiryDateText.value)
-                val validationError = validateDocumentInput(cleanType, expiryDateText.value, reminderDays.value, existingTypes)
+                val validationError = validateDocumentInput(
+                    type = cleanType,
+                    expiryDateText = expiryDateText.value,
+                    reminderDaysText = reminderDays.value,
+                    existingTypes = existingTypes
+                )
+
                 errorMessage.value = validationError
 
                 if (validationError.isBlank() && expiryMillis != null) {
-                    onAddDocument(carId, cleanType, expiryMillis, reminderDays.value.toIntOrNull()?.coerceIn(0, 365) ?: 7)
-                    val nextType = availableTypes.firstOrNull { it !in existingTypes && it != cleanType } ?: ""
+                    onAddDocument(
+                        carId,
+                        cleanType,
+                        expiryMillis,
+                        reminderDays.value.toIntOrNull()?.coerceIn(0, 365) ?: 7
+                    )
+
+                    val nextType = availableTypes.firstOrNull {
+                        it !in existingTypes && it != cleanType
+                    } ?: ""
+
                     type.value = nextType
                     expiryDateText.value = ""
                     reminderDays.value = "7"
                     errorMessage.value = ""
                 }
             },
-            enabled = normalizeDocumentType(type.value).isNotBlank() && normalizeDocumentType(type.value) !in existingTypes,
-            colors = ButtonDefaults.buttonColors(containerColor = Gold, disabledContainerColor = Color(0xFF6B7280)),
+            enabled = normalizeDocumentType(type.value).isNotBlank() &&
+                    normalizeDocumentType(type.value) !in existingTypes,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Gold,
+                disabledContainerColor = Color(0xFF6B7280)
+            ),
             shape = RoundedCornerShape(18.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Salveaza document", color = Navy, fontWeight = FontWeight.Bold)
+            Text(
+                text = "Salveaza document",
+                color = Navy,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }
 
 @Composable
-private fun SmallDocButton(text: String, enabled: Boolean = true, onClick: () -> Unit) {
+private fun SmallDocButton(
+    text: String,
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
     Button(
         onClick = onClick,
         enabled = enabled,
-        colors = ButtonDefaults.buttonColors(containerColor = Gold, disabledContainerColor = Color(0xFF4B5563)),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Gold,
+            disabledContainerColor = Color(0xFF4B5563)
+        ),
         shape = RoundedCornerShape(18.dp)
     ) {
-        Text(text = text, color = if (enabled) Navy else MutedText, fontWeight = FontWeight.Bold)
+        Text(
+            text = text,
+            color = if (enabled) Navy else MutedText,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 
@@ -1106,10 +1333,20 @@ private fun LightField(
         value = value,
         onValueChange = onChange,
         singleLine = true,
-        label = { Text(label, maxLines = 1, softWrap = false, fontSize = 13.sp) },
+        label = {
+            Text(
+                text = label,
+                maxLines = 1,
+                softWrap = false,
+                fontSize = 13.sp
+            )
+        },
         keyboardOptions = keyboardOptions,
         keyboardActions = keyboardActions,
-        textStyle = MaterialTheme.typography.bodyLarge.copy(color = Color.White, fontSize = 14.sp),
+        textStyle = MaterialTheme.typography.bodyLarge.copy(
+            color = Color.White,
+            fontSize = 14.sp
+        ),
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 2.dp)
@@ -1130,11 +1367,17 @@ private fun LightField(
 }
 
 @Composable
-private fun DarkField(value: String, onChange: (String) -> Unit, label: String) {
+private fun DarkField(
+    value: String,
+    onChange: (String) -> Unit,
+    label: String
+) {
     OutlinedTextField(
         value = value,
         onValueChange = onChange,
-        label = { Text(label) },
+        label = {
+            Text(text = label)
+        },
         textStyle = MaterialTheme.typography.bodyLarge.copy(color = Color.White),
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -1154,19 +1397,29 @@ private fun DarkField(value: String, onChange: (String) -> Unit, label: String) 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DatePickerDarkField(value: String, onChange: (String) -> Unit, label: String) {
+fun DatePickerDarkField(
+    value: String,
+    onChange: (String) -> Unit,
+    label: String
+) {
     val showPicker = remember { mutableStateOf(false) }
 
     OutlinedTextField(
         value = value,
         onValueChange = {},
         readOnly = true,
-        label = { Text(label) },
-        placeholder = { Text("Alege data") },
+        label = {
+            Text(text = label)
+        },
+        placeholder = {
+            Text(text = "Alege data")
+        },
         textStyle = MaterialTheme.typography.bodyLarge.copy(color = Color.White),
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { showPicker.value = true },
+            .clickable {
+                showPicker.value = true
+            },
         shape = RoundedCornerShape(16.dp),
         colors = OutlinedTextFieldDefaults.colors(
             focusedTextColor = Color.White,
@@ -1182,36 +1435,71 @@ private fun DatePickerDarkField(value: String, onChange: (String) -> Unit, label
     )
 
     Button(
-        onClick = { showPicker.value = true },
+        onClick = {
+            showPicker.value = true
+        },
         colors = ButtonDefaults.buttonColors(containerColor = Gold),
         shape = RoundedCornerShape(14.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Text(if (value.isBlank()) "Alege data" else "Schimba data: $value", color = Navy, fontWeight = FontWeight.Bold)
+        Text(
+            text = if (value.isBlank()) "Alege data" else "Schimba data: $value",
+            color = Navy,
+            fontWeight = FontWeight.Bold
+        )
     }
 
     if (showPicker.value) {
         val initialMillis = parseDateToMillis(value)
-        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = initialMillis
+        )
 
         DatePickerDialog(
-            onDismissRequest = { showPicker.value = false },
+            onDismissRequest = {
+                showPicker.value = false
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
                         val selectedMillis = datePickerState.selectedDateMillis
-                        if (selectedMillis != null) onChange(formatDate(selectedMillis))
+
+                        if (selectedMillis != null) {
+                            onChange(formatDate(selectedMillis))
+                        }
+
                         showPicker.value = false
                     }
-                ) { Text("Alege", color = Gold, fontWeight = FontWeight.Bold) }
+                ) {
+                    Text(
+                        text = "Alege",
+                        color = Gold,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             },
-            dismissButton = { TextButton(onClick = { showPicker.value = false }) { Text("Anuleaza", color = Navy) } }
-        ) { DatePicker(state = datePickerState) }
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showPicker.value = false
+                    }
+                ) {
+                    Text(
+                        text = "Anuleaza",
+                        color = Navy
+                    )
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
     }
 }
 
 @Composable
-private fun PremiumLightCard(content: @Composable ColumnScope.() -> Unit) {
+private fun PremiumLightCard(
+    content: @Composable ColumnScope.() -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -1220,37 +1508,88 @@ private fun PremiumLightCard(content: @Composable ColumnScope.() -> Unit) {
         border = BorderStroke(1.dp, Border),
         shape = RoundedCornerShape(22.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = content)
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            content = content
+        )
     }
 }
 
 @Composable
-private fun ConfirmDeleteDialog(title: String, message: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+private fun ConfirmDeleteDialog(
+    title: String,
+    message: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(text = title, fontWeight = FontWeight.Bold) },
-        text = { Text(text = message) },
-        confirmButton = { Button(onClick = onConfirm, colors = ButtonDefaults.buttonColors(containerColor = Danger)) { Text("Da, sterge", color = Color.White) } },
-        dismissButton = { Button(onClick = onDismiss, colors = ButtonDefaults.buttonColors(containerColor = Gold)) { Text("Anuleaza", color = Navy) } }
+        title = {
+            Text(
+                text = title,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Text(text = message)
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(containerColor = Danger)
+            ) {
+                Text(
+                    text = "Da, sterge",
+                    color = Color.White
+                )
+            }
+        },
+        dismissButton = {
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(containerColor = Gold)
+            ) {
+                Text(
+                    text = "Anuleaza",
+                    color = Navy
+                )
+            }
+        }
     )
 }
 
-private fun validateDocumentInput(type: String, expiryDateText: String, reminderDaysText: String, existingTypes: Set<String>): String {
+private fun validateDocumentInput(
+    type: String,
+    expiryDateText: String,
+    reminderDaysText: String,
+    existingTypes: Set<String>
+): String {
     val errors = mutableListOf<String>()
     val cleanType = normalizeDocumentType(type)
     val allowedTypes = setOf("ITP", "RCA", "CASCO", "Rovinieta", "Revizie")
     val reminderDays = reminderDaysText.trim().toIntOrNull()
 
-    if (cleanType.isBlank()) errors.add("Tipul documentului este obligatoriu.")
-    else if (cleanType !in allowedTypes) errors.add("Tipul documentului nu este valid. Alege ITP, RCA, CASCO, Rovinieta sau Revizie.")
-    else if (cleanType in existingTypes) errors.add("Acest document exista deja pentru masina selectata.")
+    if (cleanType.isBlank()) {
+        errors.add("Tipul documentului este obligatoriu.")
+    } else if (cleanType !in allowedTypes) {
+        errors.add("Tipul documentului nu este valid. Alege ITP, RCA, CASCO, Rovinieta sau Revizie.")
+    } else if (cleanType in existingTypes) {
+        errors.add("Acest document exista deja pentru masina selectata.")
+    }
 
     val dateError = validateExpiryDate(expiryDateText)
-    if (dateError.isNotBlank()) errors.add(dateError)
+    if (dateError.isNotBlank()) {
+        errors.add(dateError)
+    }
 
-    if (reminderDaysText.trim().isBlank()) errors.add("Numarul de zile pentru notificare este obligatoriu.")
-    else if (reminderDays == null) errors.add("Numarul de zile pentru notificare trebuie sa fie numeric.")
-    else if (reminderDays !in 0..365) errors.add("Notificarea trebuie setata intre 0 si 365 zile inainte.")
+    if (reminderDaysText.trim().isBlank()) {
+        errors.add("Numarul de zile pentru notificare este obligatoriu.")
+    } else if (reminderDays == null) {
+        errors.add("Numarul de zile pentru notificare trebuie sa fie numeric.")
+    } else if (reminderDays !in 0..365) {
+        errors.add("Notificarea trebuie setata intre 0 si 365 zile inainte.")
+    }
 
     return errors.joinToString(separator = "\n")
 }
@@ -1269,8 +1608,18 @@ private fun validateExpiryDate(value: String): String {
     }
 }
 
-private fun validateCarInput(brand: String, model: String, plate: String, yearText: String, engine: String, ownerName: String, ownerPhone: String, ownerEmail: String): String {
+private fun validateCarInput(
+    brand: String,
+    model: String,
+    plate: String,
+    yearText: String,
+    engine: String,
+    ownerName: String,
+    ownerPhone: String,
+    ownerEmail: String
+): String {
     val errors = mutableListOf<String>()
+
     val cleanBrand = brand.trim()
     val cleanModel = model.trim()
     val cleanPlate = plate.trim().uppercase()
@@ -1279,125 +1628,112 @@ private fun validateCarInput(brand: String, model: String, plate: String, yearTe
     val cleanOwnerName = ownerName.trim()
     val cleanOwnerPhone = ownerPhone.trim()
     val cleanOwnerEmail = ownerEmail.trim()
+
     val currentYear = LocalDate.now().year
     val maxAllowedYear = currentYear + 1
     val parsedYear = cleanYear.toIntOrNull()
 
-    if (cleanBrand.isBlank()) errors.add("Marca este obligatorie.")
-    else if (!isValidBrand(cleanBrand)) errors.add("Marca nu este valida. Foloseste doar litere, spatii sau cratima, maximum 25 caractere.")
+    if (cleanBrand.isBlank()) {
+        errors.add("Marca este obligatorie.")
+    } else if (!isValidBrand(cleanBrand)) {
+        errors.add("Marca nu este valida. Foloseste doar litere, spatii sau cratima, maximum 25 caractere.")
+    }
 
-    if (cleanModel.isBlank()) errors.add("Modelul este obligatoriu.")
-    else if (!isValidModel(cleanModel)) errors.add("Modelul nu este valid. Foloseste litere, cifre, spatii sau cratima, maximum 25 caractere.")
+    if (cleanModel.isBlank()) {
+        errors.add("Modelul este obligatoriu.")
+    } else if (!isValidModel(cleanModel)) {
+        errors.add("Modelul nu este valid. Foloseste litere, cifre, spatii sau cratima, maximum 25 caractere.")
+    }
 
-    if (cleanPlate.isBlank()) errors.add("Numarul de inmatriculare este obligatoriu.")
-    else if (!isValidPlate(cleanPlate)) errors.add("Numarul de inmatriculare nu este valid. Foloseste 3-12 caractere: litere, cifre, spatii sau cratima.")
+    if (cleanPlate.isBlank()) {
+        errors.add("Numarul de inmatriculare este obligatoriu.")
+    } else if (!isValidPlate(cleanPlate)) {
+        errors.add("Numarul de inmatriculare nu este valid. Foloseste 3-12 caractere: litere, cifre, spatii sau cratima.")
+    }
 
-    if (cleanYear.isBlank()) errors.add("Anul fabricatiei este obligatoriu.")
-    else if (parsedYear == null) errors.add("Anul fabricatiei trebuie sa fie numeric.")
-    else if (parsedYear !in 1950..maxAllowedYear) errors.add("Anul fabricatiei trebuie sa fie intre 1950 si $maxAllowedYear.")
+    if (cleanYear.isBlank()) {
+        errors.add("Anul fabricatiei este obligatoriu.")
+    } else if (parsedYear == null) {
+        errors.add("Anul fabricatiei trebuie sa fie numeric.")
+    } else if (parsedYear !in 1950..maxAllowedYear) {
+        errors.add("Anul fabricatiei trebuie sa fie intre 1950 si $maxAllowedYear.")
+    }
 
-    if (cleanEngine.isNotBlank() && !isValidEngine(cleanEngine)) errors.add("Motorizarea nu este valida. Exemple acceptate: 1.6 TDI, 2.0 benzina, electric, hybrid.")
-    if (cleanOwnerName.isNotBlank() && !isReasonableName(cleanOwnerName)) errors.add("Numele clientului nu este valid. Foloseste minimum 2 caractere si fara cifre.")
-    if (cleanOwnerPhone.isNotBlank() && !isValidPhone(cleanOwnerPhone)) errors.add("Telefonul clientului nu este valid. Trebuie sa contina intre 8 si 15 cifre.")
-    if (cleanOwnerEmail.isNotBlank() && !isValidEmail(cleanOwnerEmail)) errors.add("Emailul clientului nu este valid sau pare scris gresit.")
+    if (cleanEngine.isNotBlank() && !isValidEngine(cleanEngine)) {
+        errors.add("Motorizarea nu este valida. Exemple acceptate: 1.6 TDI, 2.0 benzina, electric, hybrid.")
+    }
+
+    if (cleanOwnerName.isNotBlank() && !isReasonableName(cleanOwnerName)) {
+        errors.add("Numele clientului nu este valid. Foloseste minimum 2 caractere si fara cifre.")
+    }
+
+    if (cleanOwnerPhone.isNotBlank() && !isValidPhone(cleanOwnerPhone)) {
+        errors.add("Telefonul clientului nu este valid. Trebuie sa contina intre 8 si 15 cifre.")
+    }
+
+    if (cleanOwnerEmail.isNotBlank() && !isValidEmail(cleanOwnerEmail)) {
+        errors.add("Emailul clientului nu este valid sau pare scris gresit.")
+    }
 
     return errors.joinToString(separator = "\n")
 }
 
-private fun isValidBrand(value: String): Boolean = Regex("""^[A-Za-zÀ-ž -]{2,25}$""").matches(value.trim())
-private fun isValidModel(value: String): Boolean = Regex("""^[A-Za-zÀ-ž0-9 -]{1,25}$""").matches(value.trim())
-private fun isValidPlate(value: String): Boolean = Regex("""^[A-Z0-9 -]{3,12}$""").matches(value.trim().uppercase())
+private fun isValidBrand(value: String): Boolean {
+    return Regex("""^[A-Za-zÀ-ž -]{2,25}$""").matches(value.trim())
+}
+
+private fun isValidModel(value: String): Boolean {
+    return Regex("""^[A-Za-zÀ-ž0-9 -]{1,25}$""").matches(value.trim())
+}
+
+private fun isValidPlate(value: String): Boolean {
+    return Regex("""^[A-Z0-9 -]{3,12}$""").matches(value.trim().uppercase())
+}
 
 private fun isValidEngine(value: String): Boolean {
     val cleanValue = value.trim().lowercase()
-    if (cleanValue in listOf("electric", "hibrid", "hybrid", "benzina", "diesel", "gpl", "gaz")) return true
+
+    if (cleanValue in listOf("electric", "hibrid", "hybrid", "benzina", "diesel", "gpl", "gaz")) {
+        return true
+    }
+
     val pattern = Regex("""^[0-9](\.[0-9])? ?[A-Za-zÀ-ž0-9 -]{0,15}$""")
+
     return pattern.matches(cleanValue) && cleanValue.length <= 20
 }
 
-private fun isValidPhone(value: String): Boolean = value.filter { it.isDigit() }.length in 8..15
+private fun isValidPhone(value: String): Boolean {
+    return value.filter { it.isDigit() }.length in 8..15
+}
 
 private fun isValidEmail(value: String): Boolean {
     val email = value.trim().lowercase()
     val emailPattern = Regex("""^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$""")
-    if (!emailPattern.matches(email)) return false
-    val suspiciousParts = listOf("..", ".,", ",.", ".coom", ".comm", "@yaoo.", "@yahooo.", "@yahho.", "@gmai.", "@gmial.", "@hotmial.", "@outlok.")
+
+    if (!emailPattern.matches(email)) {
+        return false
+    }
+
+    val suspiciousParts = listOf(
+        "..",
+        ".,",
+        ",.",
+        ".coom",
+        ".comm",
+        "@yaoo.",
+        "@yahooo.",
+        "@yahho.",
+        "@gmai.",
+        "@gmial.",
+        "@hotmial.",
+        "@outlok."
+    )
+
     return suspiciousParts.none { email.contains(it) }
 }
 
-private fun isReasonableName(value: String): Boolean = Regex("""^[A-Za-zÀ-ž -]{2,40}$""").matches(value.trim())
-
-private fun sendWhatsAppNotification(context: Context, car: CarUi, document: DocumentUi) {
-    val phone = normalizePhoneForWhatsApp(car.ownerPhone)
-    if (phone.isBlank()) return
-    val message = buildWhatsAppMessage(car, document)
-    val uri = Uri.parse("https://wa.me/$phone?text=${Uri.encode(message)}")
-    context.startActivity(Intent(Intent.ACTION_VIEW, uri))
-}
-
-private fun buildWhatsAppMessage(car: CarUi, document: DocumentUi): String {
-    val greeting = if (car.ownerName.isNotBlank()) "Buna ziua, ${car.ownerName}," else "Buna ziua,"
-    val expiryDate = formatDate(document.expiryDateMillis)
-    val status = documentStatusText(document)
-
-    return """
-$greeting
-
-Va contactam in legatura cu documentul auto:
-
-Document: ${document.type}
-Masina: ${car.brand} ${car.model}
-Numar inmatriculare: ${car.plate}
-Data expirarii: $expiryDate
-Status: $status
-
-Va recomandam sa verificati si sa reinnoiti documentul in timp util, pentru a evita amenzi sau probleme legale.
-
-Multumim,
-CarGuard Business
-""".trimIndent()
-}
-
-private fun normalizePhoneForWhatsApp(phone: String): String {
-    val digits = phone.filter { it.isDigit() }
-    return when {
-        digits.isBlank() -> ""
-        digits.startsWith("00") -> digits.drop(2)
-        digits.startsWith("40") -> digits
-        digits.startsWith("0") -> "40" + digits.drop(1)
-        else -> digits
-    }
-}
-
-private fun parseDateToMillis(value: String): Long? = parseDate(value)?.atStartOfDay(ZoneId.systemDefault())?.toInstant()?.toEpochMilli()
-
-private fun parseDate(value: String): LocalDate? {
-    val cleanValue = value.trim().replace("/", "-")
-    if (cleanValue.isBlank()) return null
-    val supportedFormats = listOf(DateTimeFormatter.ISO_LOCAL_DATE, DateTimeFormatter.ofPattern("dd-MM-yyyy"), DateTimeFormatter.ofPattern("d-M-yyyy"))
-
-    for (formatter in supportedFormats) {
-        try {
-            return LocalDate.parse(cleanValue, formatter)
-        } catch (e: Exception) {
-            // Try next format.
-        }
-    }
-    return null
-}
-
-private fun formatDate(millis: Long): String = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate().toString()
-
-private fun documentStatusText(document: DocumentUi): String {
-    return when {
-        document.daysLeft < 0 -> {
-            val days = abs(document.daysLeft)
-            "expirat de $days ${if (days == 1) "zi" else "zile"}"
-        }
-        document.daysLeft == 0 -> "expira azi"
-        document.daysLeft == 1 -> "expira maine"
-        else -> "expira in ${document.daysLeft} zile"
-    }
+private fun isReasonableName(value: String): Boolean {
+    return Regex("""^[A-Za-zÀ-ž -]{2,40}$""").matches(value.trim())
 }
 
 private fun statusColor(document: DocumentUi): Color {
@@ -1407,19 +1743,4 @@ private fun statusColor(document: DocumentUi): Color {
         DocumentSeverity.SOON -> Warning
         DocumentSeverity.OK -> Ok
     }
-}
-
-private fun normalizeDocumentType(type: String): String {
-    return when (type.trim().lowercase()) {
-        "itp" -> "ITP"
-        "rca" -> "RCA"
-        "casco" -> "CASCO"
-        "rovinieta" -> "Rovinieta"
-        "revizie" -> "Revizie"
-        else -> type.trim()
-    }
-}
-
-private fun isDocumentUrgent(severity: DocumentSeverity): Boolean {
-    return severity == DocumentSeverity.EXPIRED || severity == DocumentSeverity.CRITICAL || severity == DocumentSeverity.SOON
 }
