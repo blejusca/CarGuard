@@ -26,9 +26,12 @@ data class DocumentEntity(
     val expiryDate: Long,
     val reminderDaysBefore: Int = 7,
 
-    // 🔔 tracking notificari
+    // tracking notificari automate
     val notifiedExpired: Boolean = false,
     val notifiedToday: Boolean = false,
     val notifiedTomorrow: Boolean = false,
-    val notifiedReminder: Boolean = false
+    val notifiedReminder: Boolean = false,
+
+    // tracking notificare manuala client
+    val manuallyNotified: Boolean = false
 )

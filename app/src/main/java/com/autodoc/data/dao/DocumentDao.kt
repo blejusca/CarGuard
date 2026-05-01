@@ -41,7 +41,8 @@ interface DocumentDao {
             notifiedExpired = 0,
             notifiedToday = 0,
             notifiedTomorrow = 0,
-            notifiedReminder = 0
+            notifiedReminder = 0,
+            manuallyNotified = 0
         WHERE id = :documentId
         """
     )
@@ -61,6 +62,10 @@ interface DocumentDao {
 
     @Query("UPDATE documents SET notifiedReminder = 1 WHERE id = :id")
     suspend fun markReminderNotified(id: Int)
+
+    // 🔥 NOU — notificare manuala client (WhatsApp / email)
+    @Query("UPDATE documents SET manuallyNotified = 1 WHERE id = :id")
+    suspend fun markManuallyNotified(id: Int)
 
     @Query("DELETE FROM documents")
     suspend fun deleteAll()

@@ -31,7 +31,8 @@ fun DocumentEntity.toUi(): DocumentUi {
         notifiedExpired = notifiedExpired,
         notifiedToday = notifiedToday,
         notifiedTomorrow = notifiedTomorrow,
-        notifiedReminder = notifiedReminder
+        notifiedReminder = notifiedReminder,
+        manuallyNotified = manuallyNotified
     )
 }
 

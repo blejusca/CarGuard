@@ -1,5 +1,6 @@
 package com.autodoc.viewmodel
 
+import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.autodoc.data.AppPlanManager
@@ -60,6 +61,15 @@ class AutoDocViewModel(
         _userMessage.value = null
     }
 
+    private fun isValidPhone(phone: String): Boolean {
+        val cleaned = phone.replace(" ", "").replace("-", "")
+        return cleaned.matches(Regex("^\\+?[0-9]{10,15}$"))
+    }
+
+    private fun isValidEmail(email: String): Boolean {
+        return Patterns.EMAIL_ADDRESS.matcher(email).matches()
+    }
+
     fun addCar(
         brand: String,
         model: String,
@@ -82,6 +92,17 @@ class AutoDocViewModel(
         val cleanOwnerNotes = ownerNotes.trim()
 
         if (cleanBrand.isBlank() || cleanModel.isBlank() || cleanPlate.isBlank()) {
+            _userMessage.value = "Completeaza campurile obligatorii."
+            return
+        }
+
+        if (cleanOwnerPhone.isNotBlank() && !isValidPhone(cleanOwnerPhone)) {
+            _userMessage.value = "Numar de telefon invalid."
+            return
+        }
+
+        if (cleanOwnerEmail.isNotBlank() && !isValidEmail(cleanOwnerEmail)) {
+            _userMessage.value = "Email invalid."
             return
         }
 
@@ -157,6 +178,17 @@ class AutoDocViewModel(
         val cleanOwnerNotes = ownerNotes.trim()
 
         if (cleanBrand.isBlank() || cleanModel.isBlank() || cleanPlate.isBlank()) {
+            _userMessage.value = "Completeaza campurile obligatorii."
+            return
+        }
+
+        if (cleanOwnerPhone.isNotBlank() && !isValidPhone(cleanOwnerPhone)) {
+            _userMessage.value = "Numar de telefon invalid."
+            return
+        }
+
+        if (cleanOwnerEmail.isNotBlank() && !isValidEmail(cleanOwnerEmail)) {
+            _userMessage.value = "Email invalid."
             return
         }
 
@@ -272,7 +304,8 @@ class AutoDocViewModel(
                     notifiedExpired = false,
                     notifiedToday = false,
                     notifiedTomorrow = false,
-                    notifiedReminder = false
+                    notifiedReminder = false,
+                    manuallyNotified = false
                 )
             )
 
@@ -344,7 +377,7 @@ class AutoDocViewModel(
         }
 
         viewModelScope.launch {
-            documentDao.markReminderNotified(documentId)
+            documentDao.markManuallyNotified(documentId)
         }
     }
 

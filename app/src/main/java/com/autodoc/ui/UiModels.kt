@@ -27,7 +27,9 @@ data class DocumentUi(
     val notifiedExpired: Boolean = false,
     val notifiedToday: Boolean = false,
     val notifiedTomorrow: Boolean = false,
-    val notifiedReminder: Boolean = false
+    val notifiedReminder: Boolean = false,
+
+    val manuallyNotified: Boolean = false
 )
 
 enum class DocumentSeverity {
@@ -47,7 +49,7 @@ fun DocumentUi.severity(): DocumentSeverity {
 }
 
 fun DocumentUi.isManuallyNotified(): Boolean {
-    return notifiedReminder
+    return manuallyNotified
 }
 
 fun DocumentUi.shouldNotifyClient(): Boolean {
