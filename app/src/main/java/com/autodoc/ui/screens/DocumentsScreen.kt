@@ -186,11 +186,15 @@ private fun DocumentCard(
     val statusColor = getStatusColor(document.daysLeft)
     val statusText = getStatusText(document.daysLeft)
     val canNotify = hasPhone && !isNotified
+    val isUrgentActive = document.daysLeft in 0..7 && !isNotified
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = AppColors.CardBg),
-        border = BorderStroke(1.dp, if (isNotified) AppColors.Gold else statusColor),
+        border = BorderStroke(
+            width = if (isUrgentActive) 2.dp else 1.dp,
+            color = if (isNotified) AppColors.Gold else statusColor
+        ),
         shape = RoundedCornerShape(22.dp)
     ) {
         Column(
@@ -284,7 +288,7 @@ private fun DocumentCard(
                 Text(
                     text = when {
                         isNotified -> "Notificat"
-                        hasPhone -> "Trimite WhatsApp"
+                        hasPhone -> "Notifica client"
                         else -> "Telefon lipsa"
                     },
                     color = if (isNotified || hasPhone) AppColors.Navy else Color.White,
@@ -449,12 +453,12 @@ private fun getStatusText(daysLeft: Int): String {
     return when {
         daysLeft < 0 -> {
             val days = abs(daysLeft)
-            "EXPIRAT ${days}z"
+            "Expirat de $days zile"
         }
 
-        daysLeft == 0 -> "AZI"
-        daysLeft in 1..7 -> "URGENT"
-        daysLeft in 8..30 -> "CURAND"
+        daysLeft == 0 -> "Expira azi"
+        daysLeft in 1..7 -> "Expira in $daysLeft zile"
+        daysLeft in 8..30 -> "Curand"
         else -> "OK"
     }
 }
