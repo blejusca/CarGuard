@@ -186,6 +186,7 @@ private fun DocumentCard(
     val needsNotification = document.daysLeft <= 7
     val statusColor = getStatusColor(document.daysLeft)
     val statusText = getStatusText(document.daysLeft)
+    val expiryLineText = getExpiryLineText(document)
     val canNotify = hasPhone && needsNotification && !isNotified
     val isUrgentActive = document.daysLeft in 0..7 && !isNotified
 
@@ -249,8 +250,8 @@ private fun DocumentCard(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
-                        text = "Expira la: ${formatDate(document.expiryDateMillis)}",
-                        color = Color.White,
+                        text = expiryLineText,
+                        color = if (document.daysLeft < 0) AppColors.Danger else Color.White,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -434,10 +435,16 @@ private fun buildClientMessage(
     car: CarUi,
     document: DocumentUi
 ): String {
+    val expiryMessage = if (document.daysLeft < 0) {
+        "a expirat la data de ${formatDate(document.expiryDateMillis)}"
+    } else {
+        "expira la data de ${formatDate(document.expiryDateMillis)}"
+    }
+
     return """
 Buna ziua,
 
-Va reamintim ca documentul auto ${document.type} pentru masina ${car.brand} ${car.model}, numar ${car.plate}, expira la data de ${formatDate(document.expiryDateMillis)}.
+Va reamintim ca documentul auto ${document.type} pentru masina ${car.brand} ${car.model}, numar ${car.plate}, $expiryMessage.
 
 Status: ${getStatusText(document.daysLeft)}
 
@@ -457,6 +464,14 @@ private fun normalizePhone(phone: String): String {
         digits.startsWith("40") -> digits
         digits.startsWith("0") -> "40" + digits.drop(1)
         else -> digits
+    }
+}
+
+private fun getExpiryLineText(document: DocumentUi): String {
+    return when {
+        document.daysLeft < 0 -> "A expirat la: ${formatDate(document.expiryDateMillis)}"
+        document.daysLeft == 0 -> "Expira azi: ${formatDate(document.expiryDateMillis)}"
+        else -> "Expira la: ${formatDate(document.expiryDateMillis)}"
     }
 }
 
