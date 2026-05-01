@@ -29,7 +29,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -124,14 +123,12 @@ fun DashboardScreen(
         activeFilter.value,
         activeSort.value
     ) {
-        derivedStateOf {
-            filterAndSortCars(
-                cars = cars,
-                searchQuery = activeSearch.value,
-                filter = activeFilter.value,
-                sort = activeSort.value
-            )
-        }
+        filterAndSortCars(
+            cars = cars,
+            searchQuery = activeSearch.value,
+            filter = activeFilter.value,
+            sort = activeSort.value
+        )
     }
 
     Column(
@@ -204,14 +201,14 @@ fun DashboardScreen(
 
         SortButtons(
             activeSort = activeSort.value,
-            resultCount = filteredCars.value.size,
+            resultCount = filteredCars.size,
             onSortChange = { selectedSort -> activeSort.value = selectedSort }
         )
 
-        if (filteredCars.value.isEmpty()) {
+        if (filteredCars.isEmpty()) {
             EmptyCarsCard()
         } else {
-            filteredCars.value.forEach { car ->
+            filteredCars.forEach { car ->
                 PremiumCarCard(
                     car = car,
                     expanded = expandedCars[car.id] == true,

@@ -4,7 +4,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -19,11 +18,9 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.autodoc.ui.AppColors
@@ -49,8 +46,6 @@ fun SettingsScreen(
             isProPlan = isProPlan,
             onToggleProPlan = onToggleProPlan
         )
-
-        ProFeaturesCard()
 
         BackupSettingsCard(
             onExportBackup = onExportBackup,
@@ -81,7 +76,7 @@ private fun SettingsHeaderCard() {
             )
 
             Text(
-                text = "Plan aplicatie, backup, restaurare si informatii despre AutoDoc.",
+                text = "Plan aplicatie, backup, restaurare si informatii aplicatie.",
                 color = AppColors.Gold,
                 fontSize = 17.sp,
                 lineHeight = 22.sp,
@@ -156,82 +151,12 @@ private fun PlanSettingsCard(
             }
 
             Text(
-                text = "Nota: aceasta este activare locala pentru testare. Google Billing va inlocui acest control in versiunea comerciala.",
+                text = "Nota: activarea Pro este locala pentru testare. Google Billing se poate integra ulterior.",
                 color = AppColors.SoftText,
                 fontSize = 13.sp,
                 lineHeight = 18.sp
             )
         }
-    }
-}
-
-@Composable
-private fun ProFeaturesCard() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = AppColors.CardBg),
-        border = BorderStroke(1.dp, AppColors.Border),
-        shape = RoundedCornerShape(26.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text(
-                text = "Ce include Pro",
-                color = Color.White,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Black
-            )
-
-            FeatureRow("Free", "Maximum 3 masini", AppColors.SoftText)
-            FeatureRow("Pro", "Masini nelimitate", AppColors.Gold)
-            FeatureRow("Pro", "Backup si restaurare pentru datele service-ului", AppColors.Gold)
-            FeatureRow("Pro", "Flux rapid pentru notificarea clientilor", AppColors.Gold)
-
-            Text(
-                text = "Recomandare: pastreaza Free simplu si foloseste Pro pentru service-uri cu mai multe masini/clienti.",
-                color = AppColors.MutedText,
-                fontSize = 14.sp,
-                lineHeight = 19.sp
-            )
-        }
-    }
-}
-
-@Composable
-private fun FeatureRow(
-    label: String,
-    value: String,
-    accentColor: Color
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Card(
-            colors = CardDefaults.cardColors(containerColor = accentColor),
-            shape = RoundedCornerShape(999.dp)
-        ) {
-            Text(
-                text = label,
-                color = AppColors.Navy,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Black,
-                modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
-                textAlign = TextAlign.Center
-            )
-        }
-
-        Text(
-            text = value,
-            color = Color.White,
-            fontSize = 14.sp,
-            lineHeight = 18.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.weight(1f)
-        )
     }
 }
 
@@ -363,7 +288,7 @@ private fun AppInfoCard() {
             )
 
             Text(
-                text = "• evidenta masini si clienti\n• documente auto: ITP, RCA, CASCO, Rovinieta, Revizie\n• notificari pentru documente expirate sau aproape de expirare\n• notificare client prin WhatsApp\n• status persistent: Notificat\n• export raport PDF pentru masina\n• backup manual si backup automat\n• restaurare date din fisier backup\n• plan Free / Pro local",
+                text = "• evidenta masini si clienti\n• documente auto: ITP, RCA, CASCO, Rovinieta, Revizie\n• notificare client prin WhatsApp\n• status persistent: Notificat\n• export raport PDF pentru masina\n• backup manual si backup automat\n• restaurare date din fisier backup\n• plan Free / Pro local",
                 color = AppColors.SoftText,
                 fontSize = 14.sp,
                 lineHeight = 20.sp

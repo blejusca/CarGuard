@@ -29,42 +29,32 @@ class AutoDocNotificationScheduler(
         val now = System.currentTimeMillis()
         val safeDaysBefore = max(daysBefore, 0)
 
-        val reminderDays = listOf(
-            safeDaysBefore,
-            1,
-            0
-        ).distinct()
-
-        var hasScheduledFutureReminder = false
-
-        reminderDays.forEach { daysBeforeExpiry ->
-            val triggerTime =
-                expiry - TimeUnit.DAYS.toMillis(daysBeforeExpiry.toLong())
-
-            val delayMillis = triggerTime - now
-
-            if (delayMillis > 0L) {
-                enqueueReminder(
-                    documentId = documentId,
-                    type = type,
-                    carName = carName,
-                    expiry = expiry,
-                    daysBeforeExpiry = daysBeforeExpiry,
-                    delayMillis = delayMillis
-                )
-
-                hasScheduledFutureReminder = true
-            }
+        if (isExpiredMoreThan24Hours(expiry, now)) {
+            return
         }
 
-        if (!hasScheduledFutureReminder) {
+        val triggerTime = expiry - TimeUnit.DAYS.toMillis(safeDaysBefore.toLong())
+        val delayMillis = triggerTime - now
+
+        if (delayMillis > 0L) {
+            enqueueReminder(
+                documentId = documentId,
+                type = type,
+                carName = carName,
+                expiry = expiry,
+                daysBeforeExpiry = safeDaysBefore,
+                delayMillis = delayMillis,
+                policy = ExistingWorkPolicy.REPLACE
+            )
+        } else {
             enqueueReminder(
                 documentId = documentId,
                 type = type,
                 carName = carName,
                 expiry = expiry,
                 daysBeforeExpiry = EXPIRED_IMMEDIATE_REMINDER,
-                delayMillis = 10_000L
+                delayMillis = 10_000L,
+                policy = ExistingWorkPolicy.KEEP
             )
         }
     }
@@ -85,7 +75,8 @@ class AutoDocNotificationScheduler(
         carName: String,
         expiry: Long,
         daysBeforeExpiry: Int,
-        delayMillis: Long
+        delayMillis: Long,
+        policy: ExistingWorkPolicy
     ) {
         val notificationId = createNotificationId(
             documentId = documentId,
@@ -100,16 +91,23 @@ class AutoDocNotificationScheduler(
         )
 
         val request = OneTimeWorkRequestBuilder<DocumentReminderWorker>()
-            .setInitialDelay(delayMillis, TimeUnit.MILLISECONDS)
+            .setInitialDelay(delayMillis.coerceAtLeast(0L), TimeUnit.MILLISECONDS)
             .setInputData(data)
             .addTag(documentTag(documentId))
             .build()
 
         WorkManager.getInstance(context).enqueueUniqueWork(
             workName(documentId, daysBeforeExpiry),
-            ExistingWorkPolicy.REPLACE,
+            policy,
             request
         )
+    }
+
+    private fun isExpiredMoreThan24Hours(
+        expiry: Long,
+        now: Long
+    ): Boolean {
+        return now - expiry > TimeUnit.HOURS.toMillis(24)
     }
 
     private fun createNotificationId(
@@ -124,7 +122,7 @@ class AutoDocNotificationScheduler(
 
         val rawId = documentId.toLong() * 100L + safeDaysBefore.toLong()
 
-        return abs((rawId % Int.MAX_VALUE).toInt())
+        return abs((rawId % Int.MAX_VALUE).toInt()).coerceAtLeast(1)
     }
 
     private fun workName(

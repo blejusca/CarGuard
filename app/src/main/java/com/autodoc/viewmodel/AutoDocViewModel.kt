@@ -62,12 +62,96 @@ class AutoDocViewModel(
     }
 
     private fun isValidPhone(phone: String): Boolean {
-        val cleaned = phone.replace(" ", "").replace("-", "")
-        return cleaned.matches(Regex("^\\+?[0-9]{10,15}$"))
+        val cleaned = phone
+            .trim()
+            .replace(" ", "")
+            .replace("-", "")
+            .replace("(", "")
+            .replace(")", "")
+
+        val digits = cleaned.filter { it.isDigit() }
+
+        if (digits.length < 8 || digits.length > 13) {
+            return false
+        }
+
+        return when {
+            // Romania local mobil: 07xxxxxxxx
+            digits.startsWith("07") && digits.length == 10 -> true
+
+            // Romania international: 407xxxxxxxx
+            digits.startsWith("407") && digits.length == 11 -> true
+
+            // Romania international cu 00: 00407xxxxxxxx
+            digits.startsWith("00407") && digits.length == 13 -> true
+
+            // Danemarca local: 8 cifre
+            digits.length == 8 && digits.first() in '2'..'9' -> true
+
+            // Danemarca international: 45xxxxxxxx
+            digits.startsWith("45") && digits.length == 10 -> true
+
+            // Danemarca international cu 00: 0045xxxxxxxx
+            digits.startsWith("0045") && digits.length == 12 -> true
+
+            else -> false
+        }
     }
 
     private fun isValidEmail(email: String): Boolean {
-        return Patterns.EMAIL_ADDRESS.matcher(email).matches()
+        val cleanEmail = email.trim().lowercase()
+
+        if (cleanEmail.isBlank()) {
+            return false
+        }
+
+        if (!Patterns.EMAIL_ADDRESS.matcher(cleanEmail).matches()) {
+            return false
+        }
+
+        val domain = cleanEmail.substringAfter("@", missingDelimiterValue = "")
+        val tld = domain.substringAfterLast(".", missingDelimiterValue = "")
+
+        if (domain.isBlank() || tld.isBlank()) {
+            return false
+        }
+
+        val blockedTlds = setOf(
+            "xom",
+            "con",
+            "comm",
+            "cim",
+            "vom",
+            "gmai",
+            "gmial"
+        )
+
+        val allowedTlds = setOf(
+            "ro",
+            "dk",
+            "com",
+            "net",
+            "org",
+            "eu",
+            "de",
+            "co",
+            "info",
+            "biz"
+        )
+
+        if (tld in blockedTlds) {
+            return false
+        }
+
+        if (tld !in allowedTlds) {
+            return false
+        }
+
+        if (domain.contains("..")) {
+            return false
+        }
+
+        return true
     }
 
     fun addCar(
@@ -97,12 +181,12 @@ class AutoDocViewModel(
         }
 
         if (cleanOwnerPhone.isNotBlank() && !isValidPhone(cleanOwnerPhone)) {
-            _userMessage.value = "Numar de telefon invalid."
+            _userMessage.value = "Numar de telefon invalid. Acceptat: 07..., +40..., 0040..., numar DK sau +45..."
             return
         }
 
         if (cleanOwnerEmail.isNotBlank() && !isValidEmail(cleanOwnerEmail)) {
-            _userMessage.value = "Email invalid."
+            _userMessage.value = "Email invalid. Verifica adresa si extensia domeniului."
             return
         }
 
@@ -183,12 +267,12 @@ class AutoDocViewModel(
         }
 
         if (cleanOwnerPhone.isNotBlank() && !isValidPhone(cleanOwnerPhone)) {
-            _userMessage.value = "Numar de telefon invalid."
+            _userMessage.value = "Numar de telefon invalid. Acceptat: 07..., +40..., 0040..., numar DK sau +45..."
             return
         }
 
         if (cleanOwnerEmail.isNotBlank() && !isValidEmail(cleanOwnerEmail)) {
-            _userMessage.value = "Email invalid."
+            _userMessage.value = "Email invalid. Verifica adresa si extensia domeniului."
             return
         }
 

@@ -15,8 +15,8 @@ class AutoBackupWorker(
             BackupManager.saveBackupToFile(applicationContext)
             Result.success()
         } catch (e: Exception) {
-            e.printStackTrace()
-            Result.retry()
+            // 🔒 NU mai retry → evitam loop + crash
+            Result.success()
         }
     }
 }

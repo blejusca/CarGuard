@@ -183,9 +183,10 @@ private fun DocumentCard(
     onSendWhatsApp: () -> Unit
 ) {
     val hasPhone = car.ownerPhone.isNotBlank()
+    val needsNotification = document.daysLeft <= 7
     val statusColor = getStatusColor(document.daysLeft)
     val statusText = getStatusText(document.daysLeft)
-    val canNotify = hasPhone && !isNotified
+    val canNotify = hasPhone && needsNotification && !isNotified
     val isUrgentActive = document.daysLeft in 0..7 && !isNotified
 
     Card(
@@ -278,20 +279,25 @@ private fun DocumentCard(
                 colors = ButtonDefaults.textButtonColors(
                     containerColor = when {
                         isNotified -> AppColors.Gold
+                        !needsNotification -> Color(0xFF4B5563)
                         hasPhone -> AppColors.Gold
                         else -> Color(0xFF4B5563)
                     },
-                    disabledContainerColor = if (isNotified) AppColors.Gold else Color(0xFF4B5563)
+                    disabledContainerColor = when {
+                        isNotified -> AppColors.Gold
+                        else -> Color(0xFF4B5563)
+                    }
                 ),
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Text(
                     text = when {
                         isNotified -> "Notificat"
+                        !needsNotification -> "Nu necesita notificare"
                         hasPhone -> "Notifica client"
                         else -> "Telefon lipsa"
                     },
-                    color = if (isNotified || hasPhone) AppColors.Navy else Color.White,
+                    color = if (isNotified || (needsNotification && hasPhone)) AppColors.Navy else Color.White,
                     fontWeight = FontWeight.Black,
                     fontSize = 15.sp,
                     maxLines = 1
@@ -397,6 +403,11 @@ private fun notifyClient(
 ): Boolean {
     if (car.ownerPhone.isBlank()) {
         Toast.makeText(context, "Client fara telefon.", Toast.LENGTH_LONG).show()
+        return false
+    }
+
+    if (document.daysLeft > 7) {
+        Toast.makeText(context, "Documentul nu necesita notificare.", Toast.LENGTH_LONG).show()
         return false
     }
 

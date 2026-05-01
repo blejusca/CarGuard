@@ -26,12 +26,14 @@ object DatabaseProvider {
 
     private val MIGRATION_4_5 = object : Migration(4, 5) {
         override fun migrate(db: SupportSQLiteDatabase) {
-            db.execSQL(
-                """
-                ALTER TABLE documents 
-                ADD COLUMN manuallyNotified INTEGER NOT NULL DEFAULT 0
-                """.trimIndent()
-            )
+            if (!columnExists(db, "documents", "manuallyNotified")) {
+                db.execSQL(
+                    """
+                    ALTER TABLE documents 
+                    ADD COLUMN manuallyNotified INTEGER NOT NULL DEFAULT 0
+                    """.trimIndent()
+                )
+            }
         }
     }
 
@@ -49,6 +51,28 @@ object DatabaseProvider {
                 )
                 .build()
                 .also { INSTANCE = it }
+        }
+    }
+
+    private fun columnExists(
+        db: SupportSQLiteDatabase,
+        tableName: String,
+        columnName: String
+    ): Boolean {
+        val cursor = db.query("PRAGMA table_info($tableName)")
+
+        return try {
+            while (cursor.moveToNext()) {
+                val currentColumnName = cursor.getString(1)
+
+                if (currentColumnName == columnName) {
+                    return true
+                }
+            }
+
+            false
+        } finally {
+            cursor.close()
         }
     }
 
