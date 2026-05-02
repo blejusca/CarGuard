@@ -1,0 +1,770 @@
+package com.autodoc.ui.screens
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.autodoc.ui.AppColors
+import com.autodoc.ui.CarUi
+import com.autodoc.ui.DocumentSeverity
+import com.autodoc.ui.DocumentUi
+import com.autodoc.ui.severity
+
+private enum class DashboardFilter {
+    ALL,
+    EXPIRED,
+    SOON,
+    OK
+}
+
+private enum class DashboardSort {
+    URGENTE,
+    MARCA,
+    DOCUMENTE
+}
+
+private data class DashboardStats(
+    val expiredCount: Int,
+    val soonCount: Int,
+    val okCount: Int,
+    val totalDocuments: Int
+)
+
+@Composable
+fun DashboardScreen(
+    cars: List<CarUi>,
+    onAddCar: (
+        brand: String,
+        model: String,
+        plate: String,
+        year: Int,
+        engine: String,
+        ownerName: String,
+        ownerPhone: String,
+        ownerEmail: String,
+        ownerNotes: String
+    ) -> Unit,
+    onUpdateCar: (
+        carId: Int,
+        brand: String,
+        model: String,
+        plate: String,
+        year: Int,
+        engine: String,
+        ownerName: String,
+        ownerPhone: String,
+        ownerEmail: String,
+        ownerNotes: String
+    ) -> Unit,
+    onAddDocument: (
+        carId: Int,
+        type: String,
+        expiryDateMillis: Long,
+        reminderDaysBefore: Int
+    ) -> Unit,
+    onDeleteDocument: (documentId: Int) -> Unit,
+    onUpdateDocumentExpiry: (documentId: Int, expiryDateMillis: Long) -> Unit,
+    onDeleteCar: (carId: Int) -> Unit,
+    onExportCarPdf: (CarUi) -> Unit
+) {
+    val showAddCar = remember { mutableStateOf(false) }
+    val searchInput = remember { mutableStateOf("") }
+    val activeSearch = remember { mutableStateOf("") }
+    val activeFilter = remember { mutableStateOf(DashboardFilter.ALL) }
+    val activeSort = remember { mutableStateOf(DashboardSort.URGENTE) }
+    val expandedCars = remember { mutableStateMapOf<Int, Boolean>() }
+    val focusManager = LocalFocusManager.current
+
+    val stats = remember(cars) {
+        calculateDashboardStats(cars)
+    }
+
+    val filteredCars = remember(
+        cars,
+        activeSearch.value,
+        activeFilter.value,
+        activeSort.value
+    ) {
+        filterAndSortCars(
+            cars = cars,
+            searchQuery = activeSearch.value,
+            filter = activeFilter.value,
+            sort = activeSort.value
+        )
+    }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(AppColors.DeepBg)
+            .imePadding()
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Header(
+                carsCount = cars.size,
+                documentsCount = stats.totalDocuments
+            )
+        }
+
+        item {
+            PrimaryActionButton(
+                expanded = showAddCar.value,
+                onClick = { showAddCar.value = !showAddCar.value }
+            )
+        }
+
+        if (showAddCar.value) {
+            item {
+                AddCarForm(
+                    onAddCar = { brand, model, plate, year, engine, ownerName, ownerPhone, ownerEmail, ownerNotes ->
+                        onAddCar(
+                            brand,
+                            model,
+                            plate,
+                            year,
+                            engine,
+                            ownerName,
+                            ownerPhone,
+                            ownerEmail,
+                            ownerNotes
+                        )
+                        searchInput.value = ""
+                        activeSearch.value = ""
+                        activeFilter.value = DashboardFilter.ALL
+                        activeSort.value = DashboardSort.URGENTE
+                        showAddCar.value = false
+                        focusManager.clearFocus()
+                    }
+                )
+            }
+        }
+
+        item {
+            SearchBar(
+                value = searchInput.value,
+                onChange = { searchInput.value = it },
+                onSearch = {
+                    activeSearch.value = searchInput.value
+                    focusManager.clearFocus()
+                },
+                onReset = {
+                    searchInput.value = ""
+                    activeSearch.value = ""
+                    activeFilter.value = DashboardFilter.ALL
+                    activeSort.value = DashboardSort.URGENTE
+                    focusManager.clearFocus()
+                }
+            )
+        }
+
+        item {
+            SummaryCards(
+                expiredCount = stats.expiredCount,
+                soonCount = stats.soonCount,
+                okCount = stats.okCount,
+                totalDocuments = stats.totalDocuments,
+                activeFilter = activeFilter.value,
+                onFilterChange = { selectedFilter -> activeFilter.value = selectedFilter }
+            )
+        }
+
+        item {
+            SortButtons(
+                activeSort = activeSort.value,
+                resultCount = filteredCars.size,
+                onSortChange = { selectedSort -> activeSort.value = selectedSort }
+            )
+        }
+
+        if (filteredCars.isEmpty()) {
+            item {
+                EmptyCarsCard()
+            }
+        } else {
+            items(filteredCars, key = { it.id }) { car ->
+                PremiumCarCard(
+                    car = car,
+                    expanded = expandedCars[car.id] == true,
+                    onToggle = { expandedCars[car.id] = !(expandedCars[car.id] ?: false) },
+                    onUpdateCar = onUpdateCar,
+                    onAddDocument = onAddDocument,
+                    onDeleteDocument = onDeleteDocument,
+                    onUpdateDocumentExpiry = onUpdateDocumentExpiry,
+                    onDeleteCar = onDeleteCar,
+                    onExportCarPdf = onExportCarPdf
+                )
+            }
+        }
+    }
+}
+
+private fun calculateDashboardStats(cars: List<CarUi>): DashboardStats {
+    val allDocuments = cars.flatMap { it.documents }
+
+    return DashboardStats(
+        expiredCount = allDocuments.count { it.severity() == DocumentSeverity.EXPIRED },
+        soonCount = allDocuments.count { it.severity() == DocumentSeverity.SOON },
+        okCount = allDocuments.count { it.severity() == DocumentSeverity.OK },
+        totalDocuments = allDocuments.size
+    )
+}
+
+private fun filterAndSortCars(
+    cars: List<CarUi>,
+    searchQuery: String,
+    filter: DashboardFilter,
+    sort: DashboardSort
+): List<CarUi> {
+    val query = searchQuery.trim().lowercase()
+
+    return cars
+        .filter { car ->
+            car.matchesSearch(query) && car.matchesFilter(filter)
+        }
+        .sortedWith(carComparator(sort))
+}
+
+private fun CarUi.matchesSearch(query: String): Boolean {
+    if (query.isBlank()) {
+        return true
+    }
+
+    return brand.lowercase().contains(query) ||
+            model.lowercase().contains(query) ||
+            plate.lowercase().contains(query) ||
+            ownerName.lowercase().contains(query) ||
+            ownerPhone.lowercase().contains(query) ||
+            ownerEmail.lowercase().contains(query)
+}
+
+private fun CarUi.matchesFilter(filter: DashboardFilter): Boolean {
+    return when (filter) {
+        DashboardFilter.ALL -> true
+        DashboardFilter.EXPIRED -> documents.any { it.severity() == DocumentSeverity.EXPIRED }
+        DashboardFilter.SOON -> documents.any { it.severity() == DocumentSeverity.SOON }
+        DashboardFilter.OK -> documents.isNotEmpty() &&
+                documents.all { it.severity() == DocumentSeverity.OK }
+    }
+}
+
+private fun carComparator(sort: DashboardSort): Comparator<CarUi> {
+    return when (sort) {
+        DashboardSort.MARCA ->
+            compareBy<CarUi> { it.brand.lowercase() }
+                .thenBy { it.model.lowercase() }
+
+        DashboardSort.DOCUMENTE ->
+            compareByDescending<CarUi> { it.documents.size }
+                .thenBy { it.brand.lowercase() }
+                .thenBy { it.model.lowercase() }
+
+        DashboardSort.URGENTE ->
+            compareBy<CarUi> { car -> car.documents.urgencyDaysLeft() }
+                .thenBy { it.brand.lowercase() }
+                .thenBy { it.model.lowercase() }
+    }
+}
+
+private fun List<DocumentUi>.urgencyDaysLeft(): Int {
+    return minOfOrNull { it.daysLeft } ?: Int.MAX_VALUE
+}
+
+@Composable
+private fun Header(
+    carsCount: Int,
+    documentsCount: Int
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = AppColors.Navy),
+        border = BorderStroke(1.dp, AppColors.Border),
+        shape = RoundedCornerShape(24.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Card(
+                modifier = Modifier.size(50.dp),
+                colors = CardDefaults.cardColors(containerColor = AppColors.CardBg),
+                border = BorderStroke(1.dp, AppColors.Gold),
+                shape = RoundedCornerShape(18.dp)
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "◆",
+                        color = AppColors.Gold,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Black
+                    )
+                }
+            }
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                Text(
+                    text = "CarGuard Business",
+                    color = Color.White,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 22.sp,
+                    maxLines = 1
+                )
+
+                Text(
+                    text = "$carsCount masini • $documentsCount documente",
+                    color = AppColors.Gold,
+                    fontSize = 13.sp,
+                    lineHeight = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
+                )
+
+                Text(
+                    text = "Monitorizare documente, clienti si expirari auto",
+                    color = AppColors.SoftText,
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
+                    maxLines = 1
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PrimaryActionButton(
+    expanded: Boolean,
+    onClick: () -> Unit
+) {
+    Button(
+        onClick = onClick,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (expanded) AppColors.CardBg else AppColors.Gold
+        ),
+        border = if (expanded) BorderStroke(1.dp, AppColors.Border) else null,
+        shape = RoundedCornerShape(18.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(50.dp)
+    ) {
+        Text(
+            text = if (expanded) "Inchide formularul" else "+ Adauga masina",
+            color = if (expanded) AppColors.Gold else AppColors.Navy,
+            fontWeight = FontWeight.Black,
+            fontSize = 16.sp,
+            maxLines = 1,
+            softWrap = false
+        )
+    }
+}
+
+@Composable
+private fun SearchBar(
+    value: String,
+    onChange: (String) -> Unit,
+    onSearch: () -> Unit,
+    onReset: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = AppColors.CardBg),
+        border = BorderStroke(1.dp, AppColors.Border),
+        shape = RoundedCornerShape(22.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            BasicTextField(
+                value = value,
+                onValueChange = onChange,
+                singleLine = true,
+                textStyle = TextStyle(
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium
+                ),
+                keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { onSearch() }),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(AppColors.FieldBg)
+                    .border(BorderStroke(1.dp, Color.Transparent), RoundedCornerShape(18.dp)),
+                decorationBox = { innerTextField ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Search,
+                            contentDescription = null,
+                            tint = AppColors.Gold,
+                            modifier = Modifier.size(21.dp)
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(end = 4.dp),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            if (value.isBlank()) {
+                                Text(
+                                    text = "Cauta dupa masina, numar sau client",
+                                    color = AppColors.SoftText,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            }
+                            innerTextField()
+                        }
+                    }
+                }
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = onSearch,
+                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.Gold),
+                    shape = RoundedCornerShape(15.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(42.dp)
+                ) {
+                    Text(
+                        text = "Cauta",
+                        color = AppColors.Navy,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 14.sp
+                    )
+                }
+
+                Button(
+                    onClick = onReset,
+                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.Navy),
+                    shape = RoundedCornerShape(15.dp),
+                    border = BorderStroke(1.dp, AppColors.Border),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(42.dp)
+                ) {
+                    Text(
+                        text = "Reseteaza",
+                        color = AppColors.Gold,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SummaryCards(
+    expiredCount: Int,
+    soonCount: Int,
+    okCount: Int,
+    totalDocuments: Int,
+    activeFilter: DashboardFilter,
+    onFilterChange: (DashboardFilter) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = "Status documente",
+            color = Color.White,
+            fontWeight = FontWeight.Black,
+            fontSize = 18.sp
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            SummaryCard(
+                title = "Expirate",
+                value = expiredCount.toString(),
+                color = AppColors.Danger,
+                selected = activeFilter == DashboardFilter.EXPIRED,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { onFilterChange(DashboardFilter.EXPIRED) }
+            )
+            SummaryCard(
+                title = "Curand",
+                value = soonCount.toString(),
+                color = AppColors.Warning,
+                selected = activeFilter == DashboardFilter.SOON,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { onFilterChange(DashboardFilter.SOON) }
+            )
+            SummaryCard(
+                title = "OK",
+                value = okCount.toString(),
+                color = AppColors.Ok,
+                selected = activeFilter == DashboardFilter.OK,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { onFilterChange(DashboardFilter.OK) }
+            )
+            SummaryCard(
+                title = "Total",
+                value = totalDocuments.toString(),
+                color = AppColors.Gold,
+                selected = activeFilter == DashboardFilter.ALL,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { onFilterChange(DashboardFilter.ALL) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun SummaryCard(
+    title: String,
+    value: String,
+    color: Color,
+    selected: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.height(68.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) AppColors.Navy else AppColors.CardBg
+        ),
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (selected) AppColors.Gold else AppColors.Border
+        ),
+        shape = RoundedCornerShape(18.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 6.dp, vertical = 9.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = value,
+                color = color,
+                fontSize = 19.sp,
+                lineHeight = 21.sp,
+                fontWeight = FontWeight.Black,
+                maxLines = 1
+            )
+
+            Text(
+                text = title,
+                color = AppColors.SoftText,
+                fontSize = 11.sp,
+                lineHeight = 13.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1
+            )
+        }
+    }
+}
+
+@Composable
+private fun SortButtons(
+    activeSort: DashboardSort,
+    resultCount: Int,
+    onSortChange: (DashboardSort) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "Masini",
+                color = Color.White,
+                fontWeight = FontWeight.Black,
+                fontSize = 18.sp,
+                modifier = Modifier.weight(1f)
+            )
+
+            Text(
+                text = "$resultCount rezultate",
+                color = AppColors.SoftText,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp,
+                maxLines = 1
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            SortButton(
+                text = "Prioritate",
+                selected = activeSort == DashboardSort.URGENTE,
+                modifier = Modifier.weight(1f)
+            ) {
+                onSortChange(DashboardSort.URGENTE)
+            }
+
+            SortButton(
+                text = "Marca",
+                selected = activeSort == DashboardSort.MARCA,
+                modifier = Modifier.weight(1f)
+            ) {
+                onSortChange(DashboardSort.MARCA)
+            }
+
+            SortButton(
+                text = "Documente",
+                selected = activeSort == DashboardSort.DOCUMENTE,
+                modifier = Modifier.weight(1f)
+            ) {
+                onSortChange(DashboardSort.DOCUMENTE)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SortButton(
+    text: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = modifier
+            .height(40.dp)
+            .clickable { onClick() },
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) AppColors.Gold else Color.Transparent
+        ),
+        border = BorderStroke(1.dp, AppColors.Gold),
+        shape = RoundedCornerShape(50.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 8.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = text,
+                color = if (selected) AppColors.Navy else AppColors.Gold,
+                fontWeight = if (selected) FontWeight.Black else FontWeight.Bold,
+                fontSize = 12.sp,
+                maxLines = 1,
+                softWrap = false
+            )
+        }
+    }
+}
+
+@Composable
+private fun EmptyCarsCard() {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(104.dp),
+        colors = CardDefaults.cardColors(containerColor = AppColors.CardBg),
+        border = BorderStroke(1.dp, AppColors.Border),
+        shape = RoundedCornerShape(22.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Text(
+                text = "▣",
+                color = AppColors.SoftText,
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = "Nu exista masini pentru filtrul selectat.",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    lineHeight = 20.sp
+                )
+
+                Text(
+                    text = "Reseteaza cautarea sau adauga o masina noua.",
+                    color = AppColors.SoftText,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 13.sp,
+                    lineHeight = 17.sp
+                )
+            }
+        }
+    }
+}
