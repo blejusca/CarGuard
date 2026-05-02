@@ -90,7 +90,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        currentScreen = screenFromIntent(intent)
+        currentScreen = AppScreen.DASHBOARD
 
         requestNotificationPermissionIfNeeded()
         scheduleDailyDocumentCheck()
@@ -261,10 +261,10 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
 
-        currentScreen = screenFromIntent(intent)
+        currentScreen = screenFromNotificationIntent(intent)
     }
 
-    private fun screenFromIntent(intent: Intent): AppScreen {
+    private fun screenFromNotificationIntent(intent: Intent): AppScreen {
         return when (intent.getStringExtra(DocumentReminderWorker.EXTRA_OPEN_SCREEN)) {
             DocumentReminderWorker.SCREEN_DOCUMENTS -> AppScreen.DOCUMENTS
             else -> AppScreen.DASHBOARD
