@@ -2,22 +2,12 @@ package com.autodoc.ui.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -32,6 +22,8 @@ fun SettingsScreen(
     isProPlan: Boolean,
     onToggleProPlan: (Boolean) -> Unit
 ) {
+    var showConfirmDialog by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -44,7 +36,11 @@ fun SettingsScreen(
 
         PlanSettingsCard(
             isProPlan = isProPlan,
-            onToggleProPlan = onToggleProPlan
+            onUpgradeClick = {
+                if (!isProPlan) {
+                    showConfirmDialog = true
+                }
+            }
         )
 
         BackupSettingsCard(
@@ -53,6 +49,18 @@ fun SettingsScreen(
         )
 
         AppInfoCard()
+    }
+
+    if (showConfirmDialog) {
+        ConfirmProDialog(
+            onConfirm = {
+                onToggleProPlan(true)
+                showConfirmDialog = false
+            },
+            onDismiss = {
+                showConfirmDialog = false
+            }
+        )
     }
 }
 
@@ -70,16 +78,15 @@ private fun SettingsHeaderCard() {
         ) {
             Text(
                 text = "Setari",
-                style = MaterialTheme.typography.headlineMedium,
                 color = Color.White,
-                fontWeight = FontWeight.Black
+                fontWeight = FontWeight.Black,
+                fontSize = 24.sp
             )
 
             Text(
-                text = "Plan aplicatie, backup, restaurare si informatii aplicatie.",
+                text = "Plan aplicatie, backup si informatii.",
                 color = AppColors.Gold,
-                fontSize = 17.sp,
-                lineHeight = 22.sp,
+                fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
         }
@@ -89,20 +96,8 @@ private fun SettingsHeaderCard() {
 @Composable
 private fun PlanSettingsCard(
     isProPlan: Boolean,
-    onToggleProPlan: (Boolean) -> Unit
+    onUpgradeClick: () -> Unit
 ) {
-    val planTitle = if (isProPlan) "Plan Pro activ" else "Plan Free activ"
-
-    val planDescription = if (isProPlan) {
-        "Ai acces la masini nelimitate pe acest dispozitiv. Planul Pro este activ local."
-    } else {
-        "Planul Free permite maximum 3 masini. Planul Pro deblocheaza masini nelimitate."
-    }
-
-    val buttonText = if (isProPlan) "Revino la Free" else "Activeaza Pro local"
-    val buttonColor = if (isProPlan) AppColors.Danger else AppColors.Gold
-    val buttonTextColor = if (isProPlan) Color.White else AppColors.Navy
-
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = AppColors.CardBg),
@@ -120,44 +115,83 @@ private fun PlanSettingsCard(
                 fontWeight = FontWeight.Black
             )
 
-            Text(
-                text = planTitle,
-                color = AppColors.Gold,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Black
-            )
+            if (isProPlan) {
 
-            Text(
-                text = planDescription,
-                color = AppColors.MutedText,
-                fontSize = 15.sp,
-                lineHeight = 20.sp
-            )
-
-            Button(
-                onClick = { onToggleProPlan(!isProPlan) },
-                colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
-                shape = RoundedCornerShape(18.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(54.dp)
-            ) {
                 Text(
-                    text = buttonText,
-                    color = buttonTextColor,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 16.sp
+                    text = "Plan Pro activ",
+                    color = AppColors.Gold,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Black
                 )
-            }
 
-            Text(
-                text = "Nota: activarea Pro este locala pentru testare. Google Billing se poate integra ulterior.",
-                color = AppColors.SoftText,
-                fontSize = 13.sp,
-                lineHeight = 18.sp
-            )
+                Text(
+                    text = "Ai acces la masini nelimitate.",
+                    color = AppColors.MutedText
+                )
+
+            } else {
+
+                Text(
+                    text = "Plan Free activ",
+                    color = AppColors.Gold,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Black
+                )
+
+                Text(
+                    text = "Limita: 3 masini.",
+                    color = AppColors.MutedText
+                )
+
+                Button(
+                    onClick = onUpgradeClick,
+                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.Gold),
+                    shape = RoundedCornerShape(18.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(54.dp)
+                ) {
+                    Text(
+                        text = "Activeaza Pro — 9.99 €",
+                        color = AppColors.Navy,
+                        fontWeight = FontWeight.Black
+                    )
+                }
+            }
         }
     }
+}
+
+@Composable
+private fun ConfirmProDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text("Activeaza Pro", fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Text("Deblochezi masini nelimitate pentru o plata unica de 9.99 €.\n\nContinui?")
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(containerColor = AppColors.Gold)
+            ) {
+                Text("Da, activeaza", color = AppColors.Navy)
+            }
+        },
+        dismissButton = {
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(containerColor = AppColors.Danger)
+            ) {
+                Text("Anuleaza", color = Color.White)
+            }
+        }
+    )
 }
 
 @Composable
@@ -173,76 +207,17 @@ private fun BackupSettingsCard(
     ) {
         Column(
             modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Text(
-                text = "Backup date",
-                color = Color.White,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Black
-            )
+            Text("Backup date", color = Color.White, fontWeight = FontWeight.Bold)
 
-            Text(
-                text = "Backup automat activ: aplicatia salveaza periodic un backup JSON in spatiul intern al aplicatiei.",
-                color = AppColors.Gold,
-                fontSize = 15.sp,
-                lineHeight = 20.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Text(
-                text = "Backup-ul automat nu suprascrie backup-ul manual salvat in Downloads.",
-                color = AppColors.SoftText,
-                fontSize = 14.sp,
-                lineHeight = 19.sp
-            )
-
-            Text(
-                text = "Exporta sau importa manual datele aplicatiei: masini, clienti si documente.",
-                color = AppColors.MutedText,
-                fontSize = 16.sp,
-                lineHeight = 21.sp
-            )
-
-            Button(
-                onClick = onExportBackup,
-                colors = ButtonDefaults.buttonColors(containerColor = AppColors.Gold),
-                shape = RoundedCornerShape(18.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(54.dp)
-            ) {
-                Text(
-                    text = "Export backup manual",
-                    color = AppColors.Navy,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 16.sp
-                )
+            Button(onClick = onExportBackup) {
+                Text("Export backup")
             }
 
-            Button(
-                onClick = onImportBackup,
-                colors = ButtonDefaults.buttonColors(containerColor = AppColors.Danger),
-                shape = RoundedCornerShape(18.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(54.dp)
-            ) {
-                Text(
-                    text = "Import backup",
-                    color = Color.White,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 16.sp
-                )
+            Button(onClick = onImportBackup) {
+                Text("Import backup")
             }
-
-            Text(
-                text = "Atentie: importul inlocuieste datele existente cu datele din fisierul backup. Aplicatia creeaza backup de siguranta inainte de import.",
-                color = AppColors.Gold,
-                fontSize = 14.sp,
-                lineHeight = 18.sp,
-                fontWeight = FontWeight.Bold
-            )
         }
     }
 }
@@ -257,54 +232,10 @@ private fun AppInfoCard() {
     ) {
         Column(
             modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                text = "Info aplicatie",
-                color = Color.White,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Black
-            )
-
-            Text(
-                text = "AutoDoc / CarGuard Business",
-                color = AppColors.Gold,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Text(
-                text = "Aplicatie pentru gestionarea masinilor, clientilor si documentelor auto.",
-                color = AppColors.MutedText,
-                fontSize = 15.sp,
-                lineHeight = 20.sp
-            )
-
-            Text(
-                text = "Functionalitati active:",
-                color = Color.White,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Text(
-                text = "• evidenta masini si clienti\n• documente auto: ITP, RCA, CASCO, Rovinieta, Revizie\n• notificare client prin WhatsApp\n• status persistent: Notificat\n• export raport PDF pentru masina\n• backup manual si backup automat\n• restaurare date din fisier backup\n• plan Free / Pro local",
-                color = AppColors.SoftText,
-                fontSize = 14.sp,
-                lineHeight = 20.sp
-            )
-
-            Text(
-                text = "Versiune: 1.0",
-                color = AppColors.MutedText,
-                fontSize = 13.sp
-            )
-
-            Text(
-                text = "© 2026 CarGuard Business",
-                color = AppColors.SoftText,
-                fontSize = 12.sp
-            )
+            Text("AutoDoc", color = Color.White, fontWeight = FontWeight.Bold)
+            Text("Versiune 1.0", color = AppColors.SoftText)
         }
     }
 }
