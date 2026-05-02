@@ -1,7 +1,6 @@
 package com.autodoc
 
 import android.Manifest
-import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -48,7 +47,6 @@ import com.autodoc.data.PdfExportManager
 import com.autodoc.notification.AutoBackupWorker
 import com.autodoc.notification.AutoDocNotificationScheduler
 import com.autodoc.notification.DailyCheckWorker
-import com.autodoc.notification.DocumentReminderWorker
 import com.autodoc.ui.AppColors
 import com.autodoc.ui.CarUi
 import com.autodoc.ui.screens.DashboardScreen
@@ -255,19 +253,6 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
-        }
-    }
-
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-
-        currentScreen = screenFromNotificationIntent(intent)
-    }
-
-    private fun screenFromNotificationIntent(intent: Intent): AppScreen {
-        return when (intent.getStringExtra(DocumentReminderWorker.EXTRA_OPEN_SCREEN)) {
-            DocumentReminderWorker.SCREEN_DOCUMENTS -> AppScreen.DOCUMENTS
-            else -> AppScreen.DASHBOARD
         }
     }
 

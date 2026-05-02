@@ -31,6 +31,7 @@ class DocumentReminderWorker(
             val carName = inputData.getString("carName").orEmpty().ifBlank { "Masina" }
             val expiryMillis = inputData.getLong("expiryDateMillis", 0L)
             val rawNotificationId = inputData.getInt("notificationId", 0)
+
             val notificationId = if (rawNotificationId > 0) {
                 rawNotificationId
             } else {
@@ -59,7 +60,6 @@ class DocumentReminderWorker(
                     val days = abs(daysLeft)
                     "a expirat de $days ${if (days == 1) "zi" else "zile"}"
                 }
-
                 daysLeft == 0 -> "expira azi"
                 daysLeft == 1 -> "expira maine"
                 else -> "expira in $daysLeft zile"
@@ -82,10 +82,10 @@ class DocumentReminderWorker(
     }
 
     companion object {
-        private const val CHANNEL_ID = "car_doc_channel"
-
-        const val EXTRA_OPEN_SCREEN = "open_screen"
-        const val SCREEN_DOCUMENTS = "documents"
+        private const val CHANNEL_ID = "autodoc_document_notifications"
+        private const val CHANNEL_NAME = "Documente Auto"
+        private const val CHANNEL_DESCRIPTION =
+            "Notificari pentru documente auto expirate sau aproape de expirare"
 
         fun showNotification(
             context: Context,
@@ -99,8 +99,7 @@ class DocumentReminderWorker(
                     title = title,
                     message = message
                 )
-            } catch (e: Exception) {
-                // Notificarea nu trebuie sa inchida aplicatia.
+            } catch (_: Exception) {
             }
         }
 
@@ -122,36 +121,30 @@ class DocumentReminderWorker(
                 createNotificationChannel(manager)
 
                 val intent = Intent(context, MainActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                    putExtra(EXTRA_OPEN_SCREEN, SCREEN_DOCUMENTS)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                            Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                            Intent.FLAG_ACTIVITY_SINGLE_TOP
                 }
 
                 val pendingIntent = PendingIntent.getActivity(
                     context,
-                    0,
+                    notificationId,
                     intent,
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
 
-                val safeTitle = title.ifBlank { "Document auto" }
-                val safeMessage = message.ifBlank { "Ai un document auto de verificat." }
-
                 val notification = NotificationCompat.Builder(context, CHANNEL_ID)
                     .setSmallIcon(R.mipmap.ic_launcher)
-                    .setContentTitle(safeTitle)
-                    .setContentText(safeMessage)
-                    .setStyle(
-                        NotificationCompat.BigTextStyle()
-                            .bigText(safeMessage)
-                    )
+                    .setContentTitle(title.ifBlank { "Document auto" })
+                    .setContentText(message.ifBlank { "Ai un document auto de verificat." })
+                    .setStyle(NotificationCompat.BigTextStyle().bigText(message))
                     .setContentIntent(pendingIntent)
-                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                    .setPriority(NotificationCompat.PRIORITY_HIGH)
                     .setAutoCancel(true)
                     .build()
 
                 manager.notify(notificationId, notification)
-            } catch (e: Exception) {
-                // Notificarea nu trebuie sa inchida aplicatia.
+            } catch (_: Exception) {
             }
         }
 
@@ -159,10 +152,10 @@ class DocumentReminderWorker(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 val channel = NotificationChannel(
                     CHANNEL_ID,
-                    "Documente Auto",
-                    NotificationManager.IMPORTANCE_DEFAULT
+                    CHANNEL_NAME,
+                    NotificationManager.IMPORTANCE_HIGH
                 ).apply {
-                    description = "Notificari pentru documente auto expirate sau aproape de expirare"
+                    description = CHANNEL_DESCRIPTION
                 }
 
                 manager.createNotificationChannel(channel)

@@ -54,7 +54,7 @@ class AutoDocNotificationScheduler(
                 expiry = expiry,
                 daysBeforeExpiry = EXPIRED_IMMEDIATE_REMINDER,
                 delayMillis = 10_000L,
-                policy = ExistingWorkPolicy.KEEP
+                policy = ExistingWorkPolicy.REPLACE
             )
         }
     }
@@ -129,11 +129,11 @@ class AutoDocNotificationScheduler(
         documentId: Int,
         daysBeforeExpiry: Int
     ): String {
-        return "carguard_document_reminder_${documentId}_${daysBeforeExpiry}"
+        return "autodoc_document_reminder_${documentId}_${daysBeforeExpiry}"
     }
 
     private fun documentTag(documentId: Int): String {
-        return "doc_$documentId"
+        return "autodoc_doc_$documentId"
     }
 
     companion object {
