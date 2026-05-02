@@ -175,6 +175,10 @@ class MainActivity : ComponentActivity() {
                             AppScreen.DASHBOARD -> {
                                 DashboardScreen(
                                     cars = cars,
+                                    isProPlan = isProPlan,
+                                    onActivatePro = {
+                                        viewModel.setProPlan(true)
+                                    },
                                     onAddCar = { brand, model, plate, year, engine, ownerName, ownerPhone, ownerEmail, ownerNotes ->
                                         viewModel.addCar(
                                             brand = brand,

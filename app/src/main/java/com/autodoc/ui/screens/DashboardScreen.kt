@@ -1,5 +1,6 @@
 package com.autodoc.ui.screens
 
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -20,8 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -48,6 +48,8 @@ import com.autodoc.ui.DocumentSeverity
 import com.autodoc.ui.DocumentUi
 import com.autodoc.ui.severity
 
+private const val FREE_PLAN_MAX_CARS = 3
+
 private enum class DashboardFilter {
     ALL,
     EXPIRED,
@@ -71,6 +73,8 @@ private data class DashboardStats(
 @Composable
 fun DashboardScreen(
     cars: List<CarUi>,
+    isProPlan: Boolean,
+    onActivatePro: () -> Unit,
     onAddCar: (
         brand: String,
         model: String,
@@ -106,6 +110,7 @@ fun DashboardScreen(
     onExportCarPdf: (CarUi) -> Unit
 ) {
     val showAddCar = remember { mutableStateOf(false) }
+    val showProDialog = remember { mutableStateOf(false) }
     val searchInput = remember { mutableStateOf("") }
     val activeSearch = remember { mutableStateOf("") }
     val activeFilter = remember { mutableStateOf(DashboardFilter.ALL) }
@@ -131,6 +136,18 @@ fun DashboardScreen(
         )
     }
 
+    if (showProDialog.value) {
+        ConfirmDashboardProDialog(
+            onConfirm = {
+                showProDialog.value = false
+                onActivatePro()
+            },
+            onDismiss = {
+                showProDialog.value = false
+            }
+        )
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -144,6 +161,18 @@ fun DashboardScreen(
                 carsCount = cars.size,
                 documentsCount = stats.totalDocuments
             )
+        }
+
+        if (!isProPlan) {
+            item {
+                FreePlanBanner(
+                    carsCount = cars.size,
+                    maxCars = FREE_PLAN_MAX_CARS,
+                    onUpgradeClick = {
+                        showProDialog.value = true
+                    }
+                )
+            }
         }
 
         item {
@@ -236,6 +265,110 @@ fun DashboardScreen(
             }
         }
     }
+}
+
+@Composable
+private fun FreePlanBanner(
+    carsCount: Int,
+    maxCars: Int,
+    onUpgradeClick: () -> Unit
+) {
+    val safeCarsCount = carsCount.coerceAtLeast(0)
+    val usedText = "${safeCarsCount.coerceAtMost(maxCars)}/$maxCars masini folosite"
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = AppColors.CardBg),
+        border = BorderStroke(1.dp, AppColors.Gold),
+        shape = RoundedCornerShape(24.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = "Plan Free",
+                color = AppColors.Gold,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Black
+            )
+
+            Text(
+                text = usedText,
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            Text(
+                text = "Activeaza Pro pentru masini nelimitate si folosire fara limita.",
+                color = AppColors.SoftText,
+                fontSize = 14.sp,
+                lineHeight = 18.sp
+            )
+
+            Button(
+                onClick = onUpgradeClick,
+                colors = ButtonDefaults.buttonColors(containerColor = AppColors.Gold),
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+            ) {
+                Text(
+                    text = "Activeaza Pro — 9.99 €",
+                    color = AppColors.Navy,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Black
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ConfirmDashboardProDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Activeaza Pro",
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Text(
+                text = "Deblochezi masini nelimitate pentru o plata unica de 9.99 €.\n\nContinui?"
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(containerColor = AppColors.Gold)
+            ) {
+                Text(
+                    text = "Da, activeaza",
+                    color = AppColors.Navy,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        },
+        dismissButton = {
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(containerColor = AppColors.Danger)
+            ) {
+                Text(
+                    text = "Anuleaza",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    )
 }
 
 private fun calculateDashboardStats(cars: List<CarUi>): DashboardStats {
@@ -449,7 +582,7 @@ private fun SearchBar(
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.Search,
+                            imageVector = androidx.compose.material.icons.Icons.Outlined.Search,
                             contentDescription = null,
                             tint = AppColors.Gold,
                             modifier = Modifier.size(21.dp)
