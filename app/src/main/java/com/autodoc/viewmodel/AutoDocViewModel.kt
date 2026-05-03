@@ -1,8 +1,10 @@
 package com.autodoc.viewmodel
 
+import android.app.Activity
 import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.autodoc.billing.BillingState
 import com.autodoc.data.AppPlanManager
 import com.autodoc.data.dao.CarDao
 import com.autodoc.data.dao.DocumentDao
@@ -17,6 +19,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -24,14 +28,18 @@ class AutoDocViewModel(
     private val carDao: CarDao,
     private val documentDao: DocumentDao,
     private val scheduler: AutoDocNotificationScheduler,
-    private val appPlanManager: AppPlanManager
+    private val appPlanManager: AppPlanManager,
+    private val getActivity: () -> Activity?
 ) : ViewModel() {
 
-    private val _isProPlan = MutableStateFlow(appPlanManager.isProPlan())
-    val isProPlan: StateFlow<Boolean> = _isProPlan.asStateFlow()
+    // isProPlan vine direct din BillingManager - sursa de adevar unica
+    val isProPlan: StateFlow<Boolean> = appPlanManager.isProFlow
 
     private val _userMessage = MutableStateFlow<String?>(null)
     val userMessage: StateFlow<String?> = _userMessage.asStateFlow()
+
+    // Expune billingState pentru UI (succes, erori, pending)
+    val billingState: StateFlow<BillingState> = appPlanManager.billingManager.billingState
 
     val cars: StateFlow<List<CarUi>> = combine(
         carDao.observeCars(),
@@ -46,112 +54,42 @@ class AutoDocViewModel(
         initialValue = emptyList()
     )
 
-    fun setProPlan(enabled: Boolean) {
-        appPlanManager.setProPlan(enabled)
-        _isProPlan.value = appPlanManager.isProPlan()
+    init {
+        // Observam billingState pentru a afisa mesaje utilizatorului
+        appPlanManager.billingManager.billingState.onEach { state ->
+            when (state) {
+                is BillingState.PurchaseSuccess -> {
+                    _userMessage.value = "Plan Pro activat cu succes! Masini nelimitate disponibile."
+                }
+                is BillingState.Cancelled -> {
+                    // Utilizatorul a anulat - nu afisam mesaj de eroare
+                }
+                is BillingState.Pending -> {
+                    _userMessage.value = "Plata este in curs de procesare. Vei fi notificat cand este finalizata."
+                }
+                is BillingState.Error -> {
+                    _userMessage.value = state.message
+                }
+                else -> {}
+            }
+        }.launchIn(viewModelScope)
+    }
 
-        _userMessage.value = if (_isProPlan.value) {
-            "Plan Pro activ. Limita de masini este dezactivata."
-        } else {
-            "Plan Free activ. Poti adauga maximum ${appPlanManager.getFreePlanMaxCars()} masini."
+    fun launchPurchaseFlow() {
+        val activity = getActivity()
+        if (activity == null) {
+            _userMessage.value = "Nu s-a putut deschide fereastra de cumparare. Incearca din nou."
+            return
         }
+        appPlanManager.billingManager.launchPurchaseFlow(activity)
+    }
+
+    fun consumeBillingState() {
+        appPlanManager.billingManager.consumeBillingState()
     }
 
     fun clearUserMessage() {
         _userMessage.value = null
-    }
-
-    private fun isValidPhone(phone: String): Boolean {
-        val cleaned = phone
-            .trim()
-            .replace(" ", "")
-            .replace("-", "")
-            .replace("(", "")
-            .replace(")", "")
-
-        val digits = cleaned.filter { it.isDigit() }
-
-        if (digits.length < 8 || digits.length > 13) {
-            return false
-        }
-
-        return when {
-            // Romania local mobil: 07xxxxxxxx
-            digits.startsWith("07") && digits.length == 10 -> true
-
-            // Romania international: 407xxxxxxxx
-            digits.startsWith("407") && digits.length == 11 -> true
-
-            // Romania international cu 00: 00407xxxxxxxx
-            digits.startsWith("00407") && digits.length == 13 -> true
-
-            // Danemarca local: 8 cifre
-            digits.length == 8 && digits.first() in '2'..'9' -> true
-
-            // Danemarca international: 45xxxxxxxx
-            digits.startsWith("45") && digits.length == 10 -> true
-
-            // Danemarca international cu 00: 0045xxxxxxxx
-            digits.startsWith("0045") && digits.length == 12 -> true
-
-            else -> false
-        }
-    }
-
-    private fun isValidEmail(email: String): Boolean {
-        val cleanEmail = email.trim().lowercase()
-
-        if (cleanEmail.isBlank()) {
-            return false
-        }
-
-        if (!Patterns.EMAIL_ADDRESS.matcher(cleanEmail).matches()) {
-            return false
-        }
-
-        val domain = cleanEmail.substringAfter("@", missingDelimiterValue = "")
-        val tld = domain.substringAfterLast(".", missingDelimiterValue = "")
-
-        if (domain.isBlank() || tld.isBlank()) {
-            return false
-        }
-
-        val blockedTlds = setOf(
-            "xom",
-            "con",
-            "comm",
-            "cim",
-            "vom",
-            "gmai",
-            "gmial"
-        )
-
-        val allowedTlds = setOf(
-            "ro",
-            "dk",
-            "com",
-            "net",
-            "org",
-            "eu",
-            "de",
-            "co",
-            "info",
-            "biz"
-        )
-
-        if (tld in blockedTlds) {
-            return false
-        }
-
-        if (tld !in allowedTlds) {
-            return false
-        }
-
-        if (domain.contains("..")) {
-            return false
-        }
-
-        return true
     }
 
     fun addCar(
@@ -181,12 +119,12 @@ class AutoDocViewModel(
         }
 
         if (cleanOwnerPhone.isNotBlank() && !isValidPhone(cleanOwnerPhone)) {
-            _userMessage.value = "Numar de telefon invalid. Acceptat: 07..., +40..., 0040..., numar DK sau +45..."
+            _userMessage.value = "Numar de telefon invalid. Acceptat: 07..., +40..., 0040... sau orice numar international valid."
             return
         }
 
         if (cleanOwnerEmail.isNotBlank() && !isValidEmail(cleanOwnerEmail)) {
-            _userMessage.value = "Email invalid. Verifica adresa si extensia domeniului."
+            _userMessage.value = "Email invalid. Verifica adresa introdusa."
             return
         }
 
@@ -206,9 +144,8 @@ class AutoDocViewModel(
                 }
 
                 if (!appPlanManager.isProPlan() && currentCarsCount >= maxFreeCars) {
-                    _isProPlan.value = false
                     _userMessage.value =
-                        "Ai atins limita planului Free: maximum $maxFreeCars masini. Activeaza Pro pentru masini nelimitate."
+                        "Ai atins limita planului Free: maximum $maxFreeCars masini. Cumpara Pro pentru masini nelimitate."
                     return@launch
                 }
 
@@ -247,9 +184,7 @@ class AutoDocViewModel(
         ownerEmail: String = "",
         ownerNotes: String = ""
     ) {
-        if (carId <= 0) {
-            return
-        }
+        if (carId <= 0) return
 
         val cleanBrand = brand.trim()
         val cleanModel = model.trim()
@@ -267,12 +202,12 @@ class AutoDocViewModel(
         }
 
         if (cleanOwnerPhone.isNotBlank() && !isValidPhone(cleanOwnerPhone)) {
-            _userMessage.value = "Numar de telefon invalid. Acceptat: 07..., +40..., 0040..., numar DK sau +45..."
+            _userMessage.value = "Numar de telefon invalid. Acceptat: 07..., +40..., 0040... sau orice numar international valid."
             return
         }
 
         if (cleanOwnerEmail.isNotBlank() && !isValidEmail(cleanOwnerEmail)) {
-            _userMessage.value = "Email invalid. Verifica adresa si extensia domeniului."
+            _userMessage.value = "Email invalid. Verifica adresa introdusa."
             return
         }
 
@@ -312,9 +247,7 @@ class AutoDocViewModel(
     }
 
     fun deleteCar(carId: Int) {
-        if (carId <= 0) {
-            return
-        }
+        if (carId <= 0) return
 
         viewModelScope.launch {
             val car = cars.value.firstOrNull { it.id == carId }
@@ -333,16 +266,12 @@ class AutoDocViewModel(
         expiry: Long,
         daysBefore: Int
     ) {
-        if (carId <= 0 || expiry <= 0L) {
-            return
-        }
+        if (carId <= 0 || expiry <= 0L) return
 
         viewModelScope.launch {
             val cleanType = normalizeDocumentType(type)
 
-            if (cleanType.isBlank()) {
-                return@launch
-            }
+            if (cleanType.isBlank()) return@launch
 
             val car = carDao.getCarById(carId)
 
@@ -404,9 +333,7 @@ class AutoDocViewModel(
     }
 
     fun deleteDocument(documentId: Int) {
-        if (documentId <= 0) {
-            return
-        }
+        if (documentId <= 0) return
 
         viewModelScope.launch {
             scheduler.cancel(documentId)
@@ -418,9 +345,7 @@ class AutoDocViewModel(
         documentId: Int,
         expiryDateMillis: Long
     ) {
-        if (documentId <= 0 || expiryDateMillis <= 0L) {
-            return
-        }
+        if (documentId <= 0 || expiryDateMillis <= 0L) return
 
         viewModelScope.launch {
             val carWithDocument = cars.value.firstOrNull { car ->
@@ -456,13 +381,46 @@ class AutoDocViewModel(
     }
 
     fun markDocumentManuallyNotified(documentId: Int) {
-        if (documentId <= 0) {
-            return
-        }
+        if (documentId <= 0) return
 
         viewModelScope.launch {
             documentDao.markManuallyNotified(documentId)
         }
+    }
+
+    // Validare telefon internationala - accepta orice numar cu 8-15 cifre
+    private fun isValidPhone(phone: String): Boolean {
+        val digits = phone.trim()
+            .replace(" ", "")
+            .replace("-", "")
+            .replace("(", "")
+            .replace(")", "")
+            .replace("+", "")
+            .filter { it.isDigit() }
+
+        return digits.length in 8..15
+    }
+
+    // Validare email permisiva - orice TLD de minimum 2 caractere
+    private fun isValidEmail(email: String): Boolean {
+        val cleanEmail = email.trim().lowercase()
+
+        if (cleanEmail.isBlank()) return false
+
+        if (!Patterns.EMAIL_ADDRESS.matcher(cleanEmail).matches()) return false
+
+        val domain = cleanEmail.substringAfter("@", missingDelimiterValue = "")
+        val tld = domain.substringAfterLast(".", missingDelimiterValue = "")
+
+        if (domain.isBlank() || tld.length < 2) return false
+
+        if (domain.contains("..")) return false
+
+        // Blocheaza doar typo-uri evidente
+        val blockedTlds = setOf("xom", "con", "comm", "cim", "vom", "gmai", "gmial")
+        if (tld in blockedTlds) return false
+
+        return true
     }
 
     private fun isUniqueConstraintError(error: Throwable): Boolean {
@@ -472,5 +430,10 @@ class AutoDocViewModel(
                 message.contains("constraint", ignoreCase = true) ||
                 message.contains("index_cars_plate", ignoreCase = true) ||
                 message.contains("cars.plate", ignoreCase = true)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        appPlanManager.billingManager.destroy()
     }
 }

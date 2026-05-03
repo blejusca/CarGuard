@@ -1,26 +1,26 @@
 package com.autodoc.data
 
 import android.content.Context
+import com.autodoc.billing.BillingManager
+import kotlinx.coroutines.flow.StateFlow
 
+/**
+ * AppPlanManager - verifica statusul Pro exclusiv prin BillingManager.
+ * Nu mai stocheaza starea in SharedPreferences - aceasta era vulnerabila
+ * la manipulare pe dispozitive root-ate si nu reflecta realitatea platii.
+ */
 class AppPlanManager(context: Context) {
 
-    private val preferences = context.applicationContext.getSharedPreferences(
-        PREFS_NAME,
-        Context.MODE_PRIVATE
-    )
+    val billingManager = BillingManager(context)
+
+    /**
+     * Flow reactiv cu statusul Pro - true doar daca achizitia este confirmata
+     * de Google Play si a fost acknowledged corect.
+     */
+    val isProFlow: StateFlow<Boolean> = billingManager.isPurchased
 
     fun isProPlan(): Boolean {
-        return preferences.getBoolean(KEY_IS_PRO_PLAN, false)
-    }
-
-    fun setProPlan(enabled: Boolean) {
-        preferences.edit()
-            .putBoolean(KEY_IS_PRO_PLAN, enabled)
-            .apply()
-    }
-
-    fun getCurrentPlanName(): String {
-        return if (isProPlan()) PLAN_PRO else PLAN_FREE
+        return billingManager.isPurchased.value
     }
 
     fun getFreePlanMaxCars(): Int {
@@ -31,8 +31,5 @@ class AppPlanManager(context: Context) {
         const val PLAN_FREE = "Free"
         const val PLAN_PRO = "Pro"
         const val FREE_PLAN_MAX_CARS = 3
-
-        private const val PREFS_NAME = "autodoc_plan_preferences"
-        private const val KEY_IS_PRO_PLAN = "is_pro_plan"
     }
 }

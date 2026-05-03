@@ -40,6 +40,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import com.autodoc.billing.BillingState
 import com.autodoc.data.AppPlanManager
 import com.autodoc.data.BackupManager
 import com.autodoc.data.DatabaseProvider
@@ -102,7 +103,8 @@ class MainActivity : ComponentActivity() {
             carDao = database.carDao(),
             documentDao = database.documentDao(),
             scheduler = scheduler,
-            appPlanManager = appPlanManager
+            appPlanManager = appPlanManager,
+            getActivity = { this }
         )
 
         viewModel = ViewModelProvider(
@@ -115,7 +117,9 @@ class MainActivity : ComponentActivity() {
                 val cars by viewModel.cars.collectAsState()
                 val isProPlan by viewModel.isProPlan.collectAsState()
                 val userMessage by viewModel.userMessage.collectAsState()
+                val billingState by viewModel.billingState.collectAsState()
 
+                // Afiseaza toast-uri pentru mesaje de la ViewModel
                 LaunchedEffect(userMessage) {
                     val message = userMessage
                     if (!message.isNullOrBlank()) {
@@ -125,6 +129,13 @@ class MainActivity : ComponentActivity() {
                             Toast.LENGTH_LONG
                         ).show()
                         viewModel.clearUserMessage()
+                    }
+                }
+
+                // Consuma billingState dupa ce a fost afisat mesajul
+                LaunchedEffect(billingState) {
+                    if (billingState !is BillingState.Idle) {
+                        viewModel.consumeBillingState()
                     }
                 }
 
@@ -177,7 +188,7 @@ class MainActivity : ComponentActivity() {
                                     cars = cars,
                                     isProPlan = isProPlan,
                                     onActivatePro = {
-                                        viewModel.setProPlan(true)
+                                        viewModel.launchPurchaseFlow()
                                     },
                                     onAddCar = { brand, model, plate, year, engine, ownerName, ownerPhone, ownerEmail, ownerNotes ->
                                         viewModel.addCar(
@@ -248,8 +259,8 @@ class MainActivity : ComponentActivity() {
                                         )
                                     },
                                     isProPlan = isProPlan,
-                                    onToggleProPlan = { enabled ->
-                                        viewModel.setProPlan(enabled)
+                                    onBuyPro = {
+                                        viewModel.launchPurchaseFlow()
                                     }
                                 )
                             }

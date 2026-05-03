@@ -61,10 +61,12 @@ fun validateCarInput(
         errors.add("Numele clientului nu este valid. Foloseste minimum 2 caractere si fara cifre.")
     }
 
+    // Validare telefon internationala - accepta 8-15 cifre
     if (cleanOwnerPhone.isNotBlank() && !isValidPhone(cleanOwnerPhone)) {
         errors.add("Telefonul clientului nu este valid. Trebuie sa contina intre 8 si 15 cifre.")
     }
 
+    // Validare email permisiva internationala - orice TLD de minimum 2 caractere
     if (cleanOwnerEmail.isNotBlank() && !isValidEmail(cleanOwnerEmail)) {
         errors.add("Emailul clientului nu este valid sau pare scris gresit.")
     }
@@ -96,10 +98,28 @@ private fun isValidEngine(value: String): Boolean {
     return pattern.matches(cleanValue) && cleanValue.length <= 20
 }
 
+/**
+ * Validare telefon internationala.
+ * Accepta orice numar cu 8-15 cifre dupa eliminarea separatorilor standard.
+ * Acopera Romania, Danemarca, Germania, UK, Franta si orice alta tara.
+ */
 private fun isValidPhone(value: String): Boolean {
-    return value.filter { it.isDigit() }.length in 8..15
+    val digits = value.trim()
+        .replace(" ", "")
+        .replace("-", "")
+        .replace("(", "")
+        .replace(")", "")
+        .replace("+", "")
+        .filter { it.isDigit() }
+
+    return digits.length in 8..15
 }
 
+/**
+ * Validare email internationala permisiva.
+ * Accepta orice TLD de minimum 2 caractere - acopera .ro, .dk, .com, .fr, .uk, .de, .nl etc.
+ * Blocheaza doar typo-urile evidente (ex: .coom, @yaoo.).
+ */
 private fun isValidEmail(value: String): Boolean {
     val email = value.trim().lowercase()
     val emailPattern = Regex("""^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$""")
@@ -108,6 +128,16 @@ private fun isValidEmail(value: String): Boolean {
         return false
     }
 
+    val domain = email.substringAfter("@", missingDelimiterValue = "")
+    val tld = domain.substringAfterLast(".", missingDelimiterValue = "")
+
+    // TLD minim 2 caractere
+    if (tld.length < 2) return false
+
+    // Nu accepta domenii cu puncte consecutive
+    if (domain.contains("..")) return false
+
+    // Blocheaza doar typo-uri comune evidente
     val suspiciousParts = listOf(
         "..",
         ".,",

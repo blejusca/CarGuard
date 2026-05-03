@@ -13,6 +13,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.autodoc.BuildConfig
+import com.autodoc.data.AppPlanManager
 import com.autodoc.ui.AppColors
 
 @Composable
@@ -20,10 +22,8 @@ fun SettingsScreen(
     onExportBackup: () -> Unit,
     onImportBackup: () -> Unit,
     isProPlan: Boolean,
-    onToggleProPlan: (Boolean) -> Unit
+    onBuyPro: () -> Unit
 ) {
-    var showConfirmDialog by remember { mutableStateOf(false) }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -36,11 +36,7 @@ fun SettingsScreen(
 
         PlanSettingsCard(
             isProPlan = isProPlan,
-            onUpgradeClick = {
-                if (!isProPlan) {
-                    showConfirmDialog = true
-                }
-            }
+            onBuyPro = onBuyPro
         )
 
         BackupSettingsCard(
@@ -49,18 +45,6 @@ fun SettingsScreen(
         )
 
         AppInfoCard()
-    }
-
-    if (showConfirmDialog) {
-        ConfirmProDialog(
-            onConfirm = {
-                onToggleProPlan(true)
-                showConfirmDialog = false
-            },
-            onDismiss = {
-                showConfirmDialog = false
-            }
-        )
     }
 }
 
@@ -96,7 +80,7 @@ private fun SettingsHeaderCard() {
 @Composable
 private fun PlanSettingsCard(
     isProPlan: Boolean,
-    onUpgradeClick: () -> Unit
+    onBuyPro: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -116,7 +100,6 @@ private fun PlanSettingsCard(
             )
 
             if (isProPlan) {
-
                 Text(
                     text = "Plan Pro activ",
                     color = AppColors.Gold,
@@ -128,9 +111,7 @@ private fun PlanSettingsCard(
                     text = "Ai acces la masini nelimitate.",
                     color = AppColors.MutedText
                 )
-
             } else {
-
                 Text(
                     text = "Plan Free activ",
                     color = AppColors.Gold,
@@ -139,12 +120,28 @@ private fun PlanSettingsCard(
                 )
 
                 Text(
-                    text = "Limita: 3 masini.",
+                    text = "Limita: ${AppPlanManager.FREE_PLAN_MAX_CARS} masini.",
                     color = AppColors.MutedText
                 )
 
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Beneficii Pro
+                Text(
+                    text = "Ce primesti cu Pro:",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
+                Text(text = "• Masini nelimitate", color = AppColors.MutedText, fontSize = 14.sp)
+                Text(text = "• Toate documentele pentru fiecare masina", color = AppColors.MutedText, fontSize = 14.sp)
+                Text(text = "• Notificari avansate de expirare", color = AppColors.MutedText, fontSize = 14.sp)
+                Text(text = "• Plata o singura data, fara abonament", color = AppColors.Gold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+
+                Spacer(modifier = Modifier.height(4.dp))
+
                 Button(
-                    onClick = onUpgradeClick,
+                    onClick = onBuyPro,
                     colors = ButtonDefaults.buttonColors(containerColor = AppColors.Gold),
                     shape = RoundedCornerShape(18.dp),
                     modifier = Modifier
@@ -152,46 +149,21 @@ private fun PlanSettingsCard(
                         .height(54.dp)
                 ) {
                     Text(
-                        text = "Activeaza Pro — 9.99 €",
+                        text = "Cumpara Pro — plata unica",
                         color = AppColors.Navy,
                         fontWeight = FontWeight.Black
                     )
                 }
+
+                Text(
+                    text = "Pretul este afisat in Google Play la apasarea butonului. Plata este procesata securizat de Google Play.",
+                    color = AppColors.SoftText,
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp
+                )
             }
         }
     }
-}
-
-@Composable
-private fun ConfirmProDialog(
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text("Activeaza Pro", fontWeight = FontWeight.Bold)
-        },
-        text = {
-            Text("Deblochezi masini nelimitate pentru o plata unica de 9.99 €.\n\nContinui?")
-        },
-        confirmButton = {
-            Button(
-                onClick = onConfirm,
-                colors = ButtonDefaults.buttonColors(containerColor = AppColors.Gold)
-            ) {
-                Text("Da, activeaza", color = AppColors.Navy)
-            }
-        },
-        dismissButton = {
-            Button(
-                onClick = onDismiss,
-                colors = ButtonDefaults.buttonColors(containerColor = AppColors.Danger)
-            ) {
-                Text("Anuleaza", color = Color.White)
-            }
-        }
-    )
 }
 
 @Composable
@@ -235,7 +207,7 @@ private fun AppInfoCard() {
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text("AutoDoc", color = Color.White, fontWeight = FontWeight.Bold)
-            Text("Versiune 1.0", color = AppColors.SoftText)
+            Text("Versiune ${BuildConfig.VERSION_NAME}", color = AppColors.SoftText)
         }
     }
 }

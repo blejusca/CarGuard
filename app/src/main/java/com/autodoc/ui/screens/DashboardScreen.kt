@@ -42,13 +42,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.autodoc.data.AppPlanManager
 import com.autodoc.ui.AppColors
 import com.autodoc.ui.CarUi
 import com.autodoc.ui.DocumentSeverity
 import com.autodoc.ui.DocumentUi
 import com.autodoc.ui.severity
 
-private const val FREE_PLAN_MAX_CARS = 3
+private val FREE_PLAN_MAX_CARS = AppPlanManager.FREE_PLAN_MAX_CARS
 
 private enum class DashboardFilter {
     ALL,
